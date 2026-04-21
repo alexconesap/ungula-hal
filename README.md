@@ -11,7 +11,7 @@ On ESP32, GPIO uses `gpio_ll` direct register writes (single-cycle, ISR-safe). U
 In your Arduino `.ino` file:
 
 ```cpp
-#include <ungula_hal_lib.h>
+#include <ungula_hal.h>
 ```
 
 Then include the component you need:
@@ -176,7 +176,7 @@ void readAdc(uint8_t* result, size_t len) {
 ```text
 lib_hal/
   src/
-    ungula_hal_lib.h              # chain header for Arduino discovery
+    ungula_hal.h              # chain header for Arduino discovery
     hal/
       gpio/
         gpio_access.h             # bridge header (dispatches to platform)
