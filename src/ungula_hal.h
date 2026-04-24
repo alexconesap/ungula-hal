@@ -13,6 +13,9 @@
 // GPIO (digital I/O, PWM, interrupts)
 #include "hal/gpio/gpio_access.h"
 
+// ADC (oneshot with per-unit/attenuation calibration)
+#include "hal/adc/adc_manager.h"
+
 // UART (serial communication)
 #include "hal/uart/uart.h"
 

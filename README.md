@@ -1,8 +1,8 @@
 # UngulaHal
 
-> **High-performance embedded C++ libraries for ESP32, STM32 and other MCUs** — hardware abstraction layer (GPIO, PWM, UART, I2C, SPI).
+> **High-performance embedded C++ libraries for ESP32, STM32 and other MCUs** — hardware abstraction layer (GPIO, PWM, ADC, UART, I2C, SPI).
 
-Hardware abstraction layer for embedded projects. Provides platform-portable GPIO, PWM, and UART access.
+Hardware abstraction layer for embedded projects. Provides platform-portable GPIO, PWM, ADC, UART, I2C and SPI access.
 
 On ESP32, GPIO uses `gpio_ll` direct register writes (single-cycle, ISR-safe). UART wraps `esp_idf` uart driver. On other platforms, no-op stubs are provided for compilation.
 
@@ -76,6 +76,50 @@ configInputInterrupt(SENSOR_PIN, InterruptEdge::EDGE_ANY);
 ```
 
 `toggle()` is NOT atomic (read-then-write). If a pin is shared between ISR and task, the caller must synchronise.
+
+## ADC (`hal/adc/adc_manager.h`)
+
+Owning class — one instance holds all unit and calibration handles for the ADC peripheral. Calibration is tracked per `(unit, attenuation)` pair, so mixing attenuations on the same unit works correctly (each channel gets its own cali handle). Configure at boot, then read from anywhere.
+
+```cpp
+#include <hal/adc/adc_manager.h>
+
+using ungula::adc::AdcManager;
+using ungula::adc::Attenuation;
+
+AdcManager adc;
+
+void setup() {
+    adc.configure(34);                       // default 12 dB → 0–3.3 V
+    adc.configure(35, Attenuation::DB_6);    // 0–1.75 V, better precision near 0
+}
+
+void loop() {
+    uint32_t mv = 0;
+    if (adc.readMv(34, mv)) {
+        // mv = calibrated millivolts (or attenuation-aware fallback if no cali)
+    }
+
+    int raw = 0;
+    adc.readRaw(35, raw);                    // 0..4095, diagnostic path
+}
+```
+
+### API
+
+| Method | Description |
+| --- | --- |
+| `configure(pin, atten)` | Bind a GPIO to a channel. Single-assignment per pin. Succeeds even when calibration can't be created (fallback path is used). |
+| `readMv(pin, mv)` | Calibrated millivolts when eFuse calibration is available, attenuation-aware linear fallback otherwise (5–10 % error). |
+| `readRaw(pin, raw)` | Raw 12-bit ADC count, no conversion. |
+| `deinit()` | Release unit + calibration handles. Idempotent. The destructor calls this. |
+
+### Notes
+
+- **Capacity**: `AdcManager::MAX_CHANNELS` = 16 by default. Override via `-DUNGULA_HAL_MAX_ADC_CHANNELS=N` in your build flags.
+- **Thread safety**: not thread-safe for `configure()`. Configure at boot from a single context. Concurrent `readMv()`/`readRaw()` on already-configured channels is fine.
+- **ADC2 + Wi-Fi**: on classic ESP32, ADC2 channels conflict with the Wi-Fi PHY and may fail while the radio is active. Prefer ADC1 (GPIO 32–39) when Wi-Fi is in use.
+- **No lazy singleton**: create one `AdcManager` (global, member of a higher-level class, whatever fits) and share it. ESP-IDF treats the ADC unit as a singleton, so instantiating a second `AdcManager` and calling `configure()` on overlapping pins is a programming error — no runtime guard.
 
 ## UART (`hal/uart/uart.h`)
 
@@ -184,6 +228,12 @@ lib_hal/
           gpio_access_esp32.h     # ESP32: gpio_ll direct register access
           gpio_access_default.h   # no-op stubs for desktop builds
           gpio_pwm_esp32.cpp      # LEDC PWM implementation
+      adc/
+        adc_manager.h             # bridge header (dispatches to platform)
+        platforms/
+          adc_manager_esp32.h     # ESP32 class definition
+          adc_manager_esp32.cpp   # oneshot + per-(unit,atten) calibration
+          adc_manager_default.h   # host-side stub with same surface
       i2c/
         i2c_master.h              # platform-portable I2C master interface
         platforms/
@@ -203,6 +253,7 @@ lib_hal/
     test_i2c_master.cpp           # I2C stub tests (GoogleTest)
     test_spi_master.cpp           # SPI stub tests
     test_uart.cpp                 # UART stub tests
+    test_adc_manager.cpp          # AdcManager stub tests
 ```
 
 ## Testing

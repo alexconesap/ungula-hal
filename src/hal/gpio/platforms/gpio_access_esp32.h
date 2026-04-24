@@ -67,6 +67,8 @@ namespace ungula {
             if (!detail::isValidOutputGpio(pin)) {
                 return false;
             }
+            // Do NOT optimize initialization to guarantee portability with different ESP-IDF
+            // versions and for debugging.
             gpio_config_t cfg = {};
             cfg.pin_bit_mask = 1ULL << pin;
             cfg.mode = GPIO_MODE_OUTPUT;
@@ -80,6 +82,8 @@ namespace ungula {
             if (!detail::isValidGpio(pin)) {
                 return false;
             }
+            // Do NOT optimize initialization to guarantee portability with different ESP-IDF
+            // versions and for debugging.
             gpio_config_t cfg = {};
             cfg.pin_bit_mask = 1ULL << pin;
             cfg.mode = GPIO_MODE_INPUT;
@@ -93,6 +97,8 @@ namespace ungula {
             if (!detail::isValidGpio(pin)) {
                 return false;
             }
+            // Do NOT optimize initialization to guarantee portability with different ESP-IDF
+            // versions and for debugging.
             gpio_config_t cfg = {};
             cfg.pin_bit_mask = 1ULL << pin;
             cfg.mode = GPIO_MODE_INPUT;
@@ -106,6 +112,8 @@ namespace ungula {
             if (!detail::isValidGpio(pin)) {
                 return false;
             }
+            // Do NOT optimize initialization to guarantee portability with different ESP-IDF
+            // versions and for debugging.
             gpio_config_t cfg = {};
             cfg.pin_bit_mask = 1ULL << pin;
             cfg.mode = GPIO_MODE_INPUT;
@@ -119,6 +127,8 @@ namespace ungula {
             if (!detail::isValidOutputGpio(pin)) {
                 return false;
             }
+            // Do NOT optimize initialization to guarantee portability with different ESP-IDF
+            // versions and for debugging.
             gpio_config_t cfg = {};
             cfg.pin_bit_mask = 1ULL << pin;
             cfg.mode = GPIO_MODE_OUTPUT_OD;
@@ -256,6 +266,8 @@ namespace ungula {
                     intrType = GPIO_INTR_ANYEDGE;
                     break;
             }
+            // Do NOT optimize initialization to guarantee portability with different ESP-IDF
+            // versions and for debugging.
             gpio_config_t cfg = {};
             cfg.pin_bit_mask = 1ULL << pin;
             cfg.mode = GPIO_MODE_INPUT;
@@ -286,6 +298,11 @@ namespace ungula {
 
         bool configPwm(uint8_t pin, uint32_t freqHz = 1000, uint8_t resolutionBits = 8);
         bool writePwm(uint8_t pin, uint32_t duty);
+
+        // ADC input moved out of gpio_access — see <hal/adc/adc_manager.h>.
+        // Conceptually ADC is its own peripheral, not a GPIO function, and
+        // the class-based AdcManager owns per-(unit, attenuation) calibration
+        // handles correctly.
 
     }  // namespace gpio
 }  // namespace ungula

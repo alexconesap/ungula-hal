@@ -103,5 +103,7 @@ namespace ungula {
             return true;
         }
 
+        // ADC moved to <hal/adc/adc_manager.h> — see ungula::adc::AdcManager.
+
     }  // namespace gpio
 }  // namespace ungula
