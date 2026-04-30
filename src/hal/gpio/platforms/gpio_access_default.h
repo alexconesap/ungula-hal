@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 #define UNGULA_ISR_ATTR
+#define DEFAULT_GPIO_STATE false
 
 namespace ungula {
     namespace gpio {
@@ -38,7 +39,7 @@ namespace ungula {
         // ---- Digital read/write — unchecked (no-op) ----
 
         inline bool read(uint8_t /*pin*/) {
-            return false;
+            return DEFAULT_GPIO_STATE;
         }
         inline void setHigh(uint8_t /*pin*/) {}
         inline void setLow(uint8_t /*pin*/) {}
@@ -47,19 +48,31 @@ namespace ungula {
         inline void writeLow(uint8_t /*pin*/) {}
         inline void toggle(uint8_t /*pin*/) {}
 
-        // ---- Convenience checks (unchecked) ----
+        // ---- Convenience helpers (unchecked) ----
 
         inline bool isHigh(uint8_t /*pin*/) {
-            return false;
+            return DEFAULT_GPIO_STATE;
         }
         inline bool isLow(uint8_t /*pin*/) {
-            return true;
+            return !DEFAULT_GPIO_STATE;
+        }
+        inline bool isEnabled(uint8_t pin) {
+            return DEFAULT_GPIO_STATE;
+        }
+        inline bool isDisabled(uint8_t pin) {
+            return !DEFAULT_GPIO_STATE;
+        }
+        inline bool isOpen(uint8_t pin) {
+            return !DEFAULT_GPIO_STATE;
+        }
+        inline bool isClosed(uint8_t pin) {
+            return DEFAULT_GPIO_STATE;
         }
 
         // ---- Digital read/write — checked (no-op, always succeed) ----
 
         inline bool checkedRead(uint8_t /*pin*/, bool& out) {
-            out = false;
+            out = DEFAULT_GPIO_STATE;
             return true;
         }
         inline bool checkedSetHigh(uint8_t /*pin*/) {
@@ -103,7 +116,7 @@ namespace ungula {
             return true;
         }
 
-        // ADC moved to <hal/adc/adc_manager.h> — see ungula::adc::AdcManager.
+        // ADC available at <hal/adc/adc_manager.h> — see ungula::adc::AdcManager.
 
     }  // namespace gpio
 }  // namespace ungula

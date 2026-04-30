@@ -32,6 +32,28 @@ Two API layers for digital I/O:
 
 Config functions (`configOutput`, `configInput`, etc.) always validate and return `bool`.
 
+### Checked vs Uncheked
+
+Check functions are slower than unchecked — they do a GPIO validity check on every call, so
+they are not suitable for hot paths. Use them in setup(), command handlers, or
+anywhere you want to be defensive against invalid pins but don't want to pay the cost of
+validation on every read/write.
+
+### Read helpers
+
+Six inline wrappers over `read()` and `!read()` exist for readability. They carry no validation and are in the unchecked hot-path group.
+
+| Helper | Equivalent | Typical use |
+| --- | --- | --- |
+| `isHigh(pin)` | `read(pin)` | Logic-level HIGH — signal lines, step outputs |
+| `isLow(pin)` | `!read(pin)` | Logic-level LOW |
+| `isEnabled(pin)` | `read(pin)` | Active-high enable signals |
+| `isDisabled(pin)` | `!read(pin)` | Active-high enable signals, inverted sense |
+| `isOpen(pin)` | `!read(pin)` | NC switch / relay — open = not triggered |
+| `isClosed(pin)` | `read(pin)` | NC switch / relay — closed = triggered |
+
+Use these only when the compiler can inline the call (it will on all supported toolchains with optimisation enabled). At `-O0` they add a function-call round-trip with no other benefit over calling `read()` directly.
+
 ```cpp
 #include <hal/gpio/gpio_access.h>
 
@@ -105,7 +127,7 @@ void loop() {
 }
 ```
 
-### API
+### ADC API
 
 | Method | Description |
 | --- | --- |
@@ -144,7 +166,7 @@ int32_t receiveResponse(uint8_t* buf, size_t maxLen) {
 }
 ```
 
-### API
+### UART API
 
 | Method | Description |
 | --- | --- |
@@ -174,7 +196,7 @@ void readRegister(uint8_t addr, uint8_t reg, uint8_t* buf, size_t len) {
 }
 ```
 
-### API
+### I2C API
 
 | Method | Description |
 | --- | --- |
@@ -205,7 +227,7 @@ void readAdc(uint8_t* result, size_t len) {
 }
 ```
 
-### API
+### SPI API
 
 | Method | Description |
 | --- | --- |
@@ -268,7 +290,7 @@ cd tests
 
 ## Acknowledgements
 
-Thanks to Claude and ChatGPT for helping on generating this documentation.
+- Thanks to Claude and ChatGPT for helping on generating this documentation and the tests.
 
 ## License
 

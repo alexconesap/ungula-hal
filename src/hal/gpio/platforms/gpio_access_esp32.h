@@ -8,15 +8,22 @@
 ///
 /// Two API layers:
 ///
-///   **Unchecked (hot-path)**: read(), setHigh(), setLow(), write(), isHigh(), isLow().
+///   **Unchecked (hot-path)**: read(), write()
 ///   No pin validation — caller must have configured and validated the pin
 ///   beforehand via a config*() call. Use these in ISRs, timer callbacks,
 ///   PID loops, and anywhere nanoseconds matter.
+///
+///   Helpers provided around read() and write() to make code more readable:
+///   setHigh(), setLow(), isHigh(), isLow(), isEnabled(), isDisabled(), isOpen(), isClosed().
 ///
 ///   **Checked**: checkedRead(), checkedSetHigh(), checkedSetLow(), checkedWrite().
 ///   Validate the pin against the SoC bitmask before every operation.
 ///   Return false if the pin is invalid. Use these when the pin number
 ///   comes from user input, configuration files, or any untrusted source.
+///   Check functions are slower than unchecked — they do a GPIO validity check on every call, so
+///   they are not suitable for hot paths. Use them in setup(), command handlers, or
+///   anywhere you want to be defensive against invalid pins but don't want to pay the cost of
+///   validation on every read/write.
 ///
 /// Config functions (configOutput, configInput, etc.) always validate.
 ///
@@ -30,6 +37,9 @@
 ///
 /// PWM uses the LEDC peripheral (low-speed mode). State lives in a .cpp
 /// file (gpio_pwm_esp32.cpp) — single instance shared across all TUs.
+///
+/// Looking for ADC input?? see <hal/adc/adc_manager.h>.
+/// Conceptually ADC is its own peripheral, not a GPIO function.
 
 #include <stdint.h>
 
@@ -182,38 +192,77 @@ namespace ungula {
             gpio_ll_set_level(&GPIO, static_cast<gpio_num_t>(pin), high ? 1 : 0);
         }
 
-        inline void writeHigh(uint8_t pin) {
-            setHigh(pin);
-        }
-
-        inline void writeLow(uint8_t pin) {
-            setLow(pin);
-        }
-
         /// @brief Read-then-invert. NOT atomic — do not use if the pin is
         /// shared between ISR and task code without external synchronisation.
         inline void toggle(uint8_t pin) {
             write(pin, !read(pin));
         }
 
-        // ---- Convenience checks (unchecked) ----
+        // ---- Convenience helpers (unchecked) ----
 
+        /// @brief Wrapper for setHigh(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        inline void writeHigh(uint8_t pin) {
+            setHigh(pin);
+        }
+
+        /// @brief Wrapper for setLow(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        inline void writeLow(uint8_t pin) {
+            setLow(pin);
+        }
+
+        /// @brief Wrapper for read(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        /// @return true if the pin is HIGH, false otherwise.
         inline bool isHigh(uint8_t pin) {
             return read(pin);
         }
 
+        /// @brief Wrapper for !read(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        /// @return true if the pin is LOW, false otherwise.
         inline bool isLow(uint8_t pin) {
             return !read(pin);
         }
 
-        // ============================================================
+        /// @brief Wrapper for read(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        /// @return true if the pin is HIGH, false otherwise.
+        inline bool isEnabled(uint8_t pin) {
+            return read(pin);
+        }
+
+        /// @brief Wrapper for !read(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        /// @return true if the pin is LOW, false otherwise.
+        inline bool isDisabled(uint8_t pin) {
+            return !read(pin);
+        }
+
+        /// @brief Wrapper for !read(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        /// @return true if the pin is LOW, false otherwise.
+        inline bool isOpen(uint8_t pin) {
+            return !read(pin);
+        }
+
+        /// @brief Wrapper for read(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        /// @return true if the pin is HIGH, false otherwise.
+        inline bool isClosed(uint8_t pin) {
+            return read(pin);
+        }
+
+        // -----------------------------------------------------------
         // Checked digital read/write — validates pin before each call
-        // ============================================================
+        // -----------------------------------------------------------
         // Use these when the pin number comes from configuration, user
         // input, or any source not verified at compile time.
         // Returns false if the pin is not a valid GPIO for the SoC.
 
         /// @brief Read with pin validation. Returns false for invalid pins.
+        /// This is slower than unchecked read() due to the validation step, but safe for any pin number.
         /// @param pin GPIO number.
         /// @param out Receives the pin level (true = HIGH) on success.
         /// @return true if the pin is valid and was read, false otherwise.
@@ -226,6 +275,7 @@ namespace ungula {
         }
 
         /// @brief Set pin HIGH with validation.
+        /// This is slower than unchecked setHigh() due to the validation step, but safe for any pin number.
         /// @return true if the pin is a valid output GPIO, false otherwise.
         inline bool checkedSetHigh(uint8_t pin) {
             if (!detail::isValidOutputGpio(pin)) {
@@ -236,6 +286,7 @@ namespace ungula {
         }
 
         /// @brief Set pin LOW with validation.
+        /// This is slower than unchecked setLow() due to the validation step, but safe for any pin number.
         /// @return true if the pin is a valid output GPIO, false otherwise.
         inline bool checkedSetLow(uint8_t pin) {
             if (!detail::isValidOutputGpio(pin)) {
@@ -246,6 +297,7 @@ namespace ungula {
         }
 
         /// @brief Write pin level with validation.
+        /// This is slower than unchecked write() due to the validation step, but safe for any pin number.
         /// @return true if the pin is a valid output GPIO, false otherwise.
         inline bool checkedWrite(uint8_t pin, bool high) {
             if (!detail::isValidOutputGpio(pin)) {
@@ -319,10 +371,8 @@ namespace ungula {
         bool configPwm(uint8_t pin, uint32_t freqHz = 1000, uint8_t resolutionBits = 8);
         bool writePwm(uint8_t pin, uint32_t duty);
 
-        // ADC input moved out of gpio_access — see <hal/adc/adc_manager.h>.
-        // Conceptually ADC is its own peripheral, not a GPIO function, and
-        // the class-based AdcManager owns per-(unit, attenuation) calibration
-        // handles correctly.
+        // ADC input?? see <hal/adc/adc_manager.h>.
+        // Conceptually ADC is its own peripheral, not a GPIO function
 
     }  // namespace gpio
 }  // namespace ungula
