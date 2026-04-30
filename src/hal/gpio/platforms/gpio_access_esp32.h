@@ -123,6 +123,26 @@ namespace ungula {
             return gpio_config(&cfg) == ESP_OK;
         }
 
+        inline bool configRelay(uint8_t pin, bool active_low = true, bool enable_pullup = true) {
+            if (!detail::isValidOutputGpio(pin)) {
+                return false;
+            }
+
+            gpio_config_t cfg = {};
+            cfg.pin_bit_mask = 1ULL << pin;
+            cfg.mode = GPIO_MODE_OUTPUT;
+            cfg.pull_up_en = enable_pullup ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+            cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+            cfg.intr_type = GPIO_INTR_DISABLE;
+
+            if (gpio_config(&cfg) != ESP_OK) {
+                return false;
+            }
+
+            const int off_level = active_low ? 1 : 0;
+            return gpio_set_level(static_cast<gpio_num_t>(pin), off_level) == ESP_OK;
+        }
+
         inline bool configOutputOpenDrain(uint8_t pin) {
             if (!detail::isValidOutputGpio(pin)) {
                 return false;
