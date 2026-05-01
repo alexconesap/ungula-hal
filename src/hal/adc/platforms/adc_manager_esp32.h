@@ -46,10 +46,10 @@ namespace ungula {
     namespace adc {
 
         enum class Attenuation : uint8_t {
-                DB_0 = 0,    /// ~0–950 mV input range, best precision near 0 V
-                DB_2_5 = 1,  /// ~0–1.25 V
-                DB_6 = 2,    /// ~0–1.75 V
-                DB_12 = 3,   /// ~0–3.3 V (full-scale on a 3.3 V rail) — default
+            DB_0 = 0,    /// ~0–950 mV input range, best precision near 0 V
+            DB_2_5 = 1,  /// ~0–1.25 V
+            DB_6 = 2,    /// ~0–1.75 V
+            DB_12 = 3,   /// ~0–3.3 V (full-scale on a 3.3 V rail) — default
         };
 
         enum class CaliScheme : uint8_t { None, CurveFitting, LineFitting };

@@ -262,7 +262,8 @@ namespace ungula {
         // Returns false if the pin is not a valid GPIO for the SoC.
 
         /// @brief Read with pin validation. Returns false for invalid pins.
-        /// This is slower than unchecked read() due to the validation step, but safe for any pin number.
+        /// This is slower than unchecked read() due to the validation step, but safe for any pin
+        /// number.
         /// @param pin GPIO number.
         /// @param out Receives the pin level (true = HIGH) on success.
         /// @return true if the pin is valid and was read, false otherwise.
@@ -275,7 +276,8 @@ namespace ungula {
         }
 
         /// @brief Set pin HIGH with validation.
-        /// This is slower than unchecked setHigh() due to the validation step, but safe for any pin number.
+        /// This is slower than unchecked setHigh() due to the validation step, but safe for any pin
+        /// number.
         /// @return true if the pin is a valid output GPIO, false otherwise.
         inline bool checkedSetHigh(uint8_t pin) {
             if (!detail::isValidOutputGpio(pin)) {
@@ -286,7 +288,8 @@ namespace ungula {
         }
 
         /// @brief Set pin LOW with validation.
-        /// This is slower than unchecked setLow() due to the validation step, but safe for any pin number.
+        /// This is slower than unchecked setLow() due to the validation step, but safe for any pin
+        /// number.
         /// @return true if the pin is a valid output GPIO, false otherwise.
         inline bool checkedSetLow(uint8_t pin) {
             if (!detail::isValidOutputGpio(pin)) {
@@ -297,7 +300,8 @@ namespace ungula {
         }
 
         /// @brief Write pin level with validation.
-        /// This is slower than unchecked write() due to the validation step, but safe for any pin number.
+        /// This is slower than unchecked write() due to the validation step, but safe for any pin
+        /// number.
         /// @return true if the pin is a valid output GPIO, false otherwise.
         inline bool checkedWrite(uint8_t pin, bool high) {
             if (!detail::isValidOutputGpio(pin)) {

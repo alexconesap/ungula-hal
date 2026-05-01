@@ -20,10 +20,10 @@ namespace ungula {
     namespace adc {
 
         enum class Attenuation : uint8_t {
-                DB_0 = 0,
-                DB_2_5 = 1,
-                DB_6 = 2,
-                DB_12 = 3,
+            DB_0 = 0,
+            DB_2_5 = 1,
+            DB_6 = 2,
+            DB_12 = 3,
         };
 
         enum class CaliScheme : uint8_t { None, CurveFitting, LineFitting };

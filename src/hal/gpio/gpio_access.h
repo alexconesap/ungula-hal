@@ -21,7 +21,8 @@
 ///   A few helpers are available to make the code more readable:
 ///   isHigh(), isLow(), isEnabled(), isDisabled(), isOpen(), isClosed()
 ///
-///   Use these only if your compiler optimizes inlined calls — they are just wrappers around read() or !read().
+///   Use these only if your compiler optimizes inlined calls — they are just wrappers around read()
+///   or !read().
 ///
 ///   **Checked**: checkedRead(), checkedSetHigh(), checkedSetLow(), checkedWrite()
 ///   Validate pin against the SoC bitmask on every call. Return false
