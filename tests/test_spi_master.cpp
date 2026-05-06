@@ -4,13 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <hal/spi/spi_master.h>
+#include <ungula/hal/spi/spi_master.h>
 
 #include <cstring>
 
 namespace {
 
-    using ungula::spi::SpiMaster;
+    using ungula::hal::spi::SpiMaster;
 
     TEST(SpiMasterStubTest, BeginSucceeds) {
         SpiMaster spi;

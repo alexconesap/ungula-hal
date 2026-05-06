@@ -11,17 +11,17 @@ On ESP32, GPIO uses `gpio_ll` direct register writes (single-cycle, ISR-safe). U
 In your Arduino `.ino` file:
 
 ```cpp
-#include <ungula_hal.h>
+#include <ungula/hal.h>
 ```
 
 Then include the component you need:
 
 ```cpp
-#include <hal/gpio/gpio_access.h>
-#include <hal/uart/uart.h>
+#include <ungula/hal/gpio/gpio_access.h>
+#include <ungula/hal/uart/uart.h>
 ```
 
-## GPIO (`hal/gpio/gpio_access.h`)
+## GPIO (`ungula/hal/gpio/gpio_access.h`)
 
 Two API layers for digital I/O:
 
@@ -55,9 +55,9 @@ Six inline wrappers over `read()` and `!read()` exist for readability. They carr
 Use these only when the compiler can inline the call (it will on all supported toolchains with optimisation enabled). At `-O0` they add a function-call round-trip with no other benefit over calling `read()` directly.
 
 ```cpp
-#include <hal/gpio/gpio_access.h>
+#include <ungula/hal/gpio/gpio_access.h>
 
-using namespace ungula::gpio;
+using namespace ungula::hal::gpio;
 
 void setup() {
     configOutput(LED_PIN);
@@ -84,8 +84,8 @@ void loop() {
 ### Interrupts
 
 ```cpp
-using ungula::gpio::InterruptEdge;
-using ungula::gpio::PullMode;
+using ungula::hal::gpio::InterruptEdge;
+using ungula::hal::gpio::PullMode;
 
 // Button with internal pull-up, trigger on falling edge
 configInputInterrupt(BUTTON_PIN, InterruptEdge::EDGE_FALLING, PullMode::UP);
@@ -99,15 +99,15 @@ configInputInterrupt(SENSOR_PIN, InterruptEdge::EDGE_ANY);
 
 `toggle()` is NOT atomic (read-then-write). If a pin is shared between ISR and task, the caller must synchronise.
 
-## ADC (`hal/adc/adc_manager.h`)
+## ADC (`ungula/hal/adc/adc_manager.h`)
 
 Owning class — one instance holds all unit and calibration handles for the ADC peripheral. Calibration is tracked per `(unit, attenuation)` pair, so mixing attenuations on the same unit works correctly (each channel gets its own cali handle). Configure at boot, then read from anywhere.
 
 ```cpp
-#include <hal/adc/adc_manager.h>
+#include <ungula/hal/adc/adc_manager.h>
 
-using ungula::adc::AdcManager;
-using ungula::adc::Attenuation;
+using ungula::hal::adc::AdcManager;
+using ungula::hal::adc::Attenuation;
 
 AdcManager adc;
 
@@ -143,14 +143,14 @@ void loop() {
 - **ADC2 + Wi-Fi**: on classic ESP32, ADC2 channels conflict with the Wi-Fi PHY and may fail while the radio is active. Prefer ADC1 (GPIO 32–39) when Wi-Fi is in use.
 - **No lazy singleton**: create one `AdcManager` (global, member of a higher-level class, whatever fits) and share it. ESP-IDF treats the ADC unit as a singleton, so instantiating a second `AdcManager` and calling `configure()` on overlapping pins is a programming error — no runtime guard.
 
-## UART (`hal/uart/uart.h`)
+## UART (`ungula/hal/uart/uart.h`)
 
 One-owner-per-port UART wrapper. Non-copyable.
 
 ```cpp
-#include <hal/uart/uart.h>
+#include <ungula/hal/uart/uart.h>
 
-ungula::uart::Uart uart(2);  // ESP32 UART port 2
+ungula::hal::uart::Uart uart(2);  // ESP32 UART port 2
 
 void setup() {
     uart.begin(115200, PIN_TX, PIN_RX);
@@ -176,16 +176,16 @@ int32_t receiveResponse(uint8_t* buf, size_t maxLen) {
 | `flush()` | Block until all TX data is physically sent. |
 | `flushInput()` | Discard all pending RX data. |
 
-## I2C Master (`hal/i2c/i2c_master.h`)
+## I2C Master (`ungula/hal/i2c/i2c_master.h`)
 
 One-owner-per-port I2C master wrapper. Non-copyable.
 
 On ESP32, uses the legacy `driver/i2c.h` command-link API (compatible with ESP-IDF 5.1+). On desktop, a no-op stub returns success for all operations.
 
 ```cpp
-#include <hal/i2c/i2c_master.h>
+#include <ungula/hal/i2c/i2c_master.h>
 
-ungula::i2c::I2cMaster bus(0);  // I2C port 0
+ungula::hal::i2c::I2cMaster bus(0);  // I2C port 0
 
 void setup() {
     bus.begin(21, 22, 400000);  // SDA=21, SCL=22, 400kHz
@@ -206,16 +206,16 @@ void readRegister(uint8_t addr, uint8_t reg, uint8_t* buf, size_t len) {
 | `writeRead(addr, writeData, writeLen, readBuf, readLen, timeoutMs)` | Combined write-then-read with repeated START. |
 | `port()` | Hardware peripheral index passed at construction. |
 
-## SPI Master (`hal/spi/spi_master.h`)
+## SPI Master (`ungula/hal/spi/spi_master.h`)
 
 Single-device SPI master wrapper. One `SpiMaster` = one CS line. For multiple devices on the same bus, create one instance per device sharing the same host but with different CS pins.
 
 On ESP32, uses `driver/spi_master.h` with polling transmit. On desktop, a stub that zeros receive buffers.
 
 ```cpp
-#include <hal/spi/spi_master.h>
+#include <ungula/hal/spi/spi_master.h>
 
-ungula::spi::SpiMaster spi;
+ungula::hal::spi::SpiMaster spi;
 
 void setup() {
     spi.begin(18, 19, 23, 5, 1000000, 1);  // SCLK, MISO, MOSI, CS, 1MHz, mode 1
@@ -242,37 +242,40 @@ void readAdc(uint8_t* result, size_t len) {
 ```text
 lib_hal/
   src/
-    ungula_hal.h              # chain header for Arduino discovery
-    hal/
-      gpio/
-        gpio_access.h             # bridge header (dispatches to platform)
-        platforms/
-          gpio_access_esp32.h     # ESP32: gpio_ll direct register access
-          gpio_access_default.h   # no-op stubs for desktop builds
-          gpio_pwm_esp32.cpp      # LEDC PWM implementation
-      adc/
-        adc_manager.h             # bridge header (dispatches to platform)
-        platforms/
-          adc_manager_esp32.h     # ESP32 class definition
-          adc_manager_esp32.cpp   # oneshot + per-(unit,atten) calibration
-          adc_manager_default.h   # host-side stub with same surface
-      i2c/
-        i2c_master.h              # platform-portable I2C master interface
-        platforms/
-          i2c_master_esp32.cpp    # ESP-IDF legacy i2c driver wrapper
-          i2c_master_default.cpp  # no-op stubs for desktop builds
-      spi/
-        spi_master.h              # platform-portable SPI master interface
-        platforms/
-          spi_master_esp32.cpp    # ESP-IDF spi_master wrapper
-          spi_master_default.cpp  # no-op stubs for desktop builds
-      uart/
-        uart.h                    # platform-portable UART interface
-        platforms/
-          uart_esp32.cpp          # ESP-IDF uart driver wrapper
-          uart_default.cpp        # no-op stubs for desktop builds
+    ungula/
+      hal.h                       # chain header for Arduino discovery
+      hal/
+        gpio/
+          gpio_access.h           # bridge header (dispatches to platform)
+          gpio_types.h
+          platforms/
+            gpio_access_esp32.h   # ESP32: gpio_ll direct register access
+            gpio_access_default.h # no-op stubs for desktop builds
+            gpio_pwm_esp32.cpp    # LEDC PWM implementation
+        adc/
+          adc_manager.h           # bridge header (dispatches to platform)
+          platforms/
+            adc_manager_esp32.h   # ESP32 class definition
+            adc_manager_esp32.cpp # oneshot + per-(unit,atten) calibration
+            adc_manager_default.h # host-side stub with same surface
+        i2c/
+          i2c_master.h            # platform-portable I2C master interface
+          platforms/
+            i2c_master_esp32.cpp  # ESP-IDF legacy i2c driver wrapper
+            i2c_master_default.cpp# no-op stubs for desktop builds
+        spi/
+          spi_master.h            # platform-portable SPI master interface
+          platforms/
+            spi_master_esp32.cpp  # ESP-IDF spi_master wrapper
+            spi_master_default.cpp# no-op stubs for desktop builds
+        uart/
+          uart.h                  # platform-portable UART interface
+          platforms/
+            uart_esp32.cpp        # ESP-IDF uart driver wrapper
+            uart_default.cpp      # no-op stubs for desktop builds
   tests/
-    test_i2c_master.cpp           # I2C stub tests (GoogleTest)
+    test_gpio_access.cpp          # GPIO stub tests (GoogleTest)
+    test_i2c_master.cpp           # I2C stub tests
     test_spi_master.cpp           # SPI stub tests
     test_uart.cpp                 # UART stub tests
     test_adc_manager.cpp          # AdcManager stub tests

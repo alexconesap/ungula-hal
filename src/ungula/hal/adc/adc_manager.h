@@ -10,7 +10,7 @@
 /// the ungula::adc namespace regardless of backend.
 ///
 /// Usage:
-///   #include <hal/adc/adc_manager.h>
+///   #include <ungula/hal/adc/adc_manager.h>
 
 #if defined(ESP_PLATFORM)
 #include "platforms/adc_manager_esp32.h"

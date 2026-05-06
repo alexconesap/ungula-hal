@@ -4,12 +4,12 @@
 
 #include <gtest/gtest.h>
 
-#include <hal/adc/adc_manager.h>
+#include <ungula/hal/adc/adc_manager.h>
 
 namespace {
 
-    using ungula::adc::AdcManager;
-    using ungula::adc::Attenuation;
+    using ungula::hal::adc::AdcManager;
+    using ungula::hal::adc::Attenuation;
 
     TEST(AdcManagerStubTest, ConfigureNewPinSucceeds) {
         AdcManager mgr;

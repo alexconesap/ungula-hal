@@ -31,9 +31,9 @@ add_executable(test_ungula_hal
     test_spi_master.cpp
     test_uart.cpp
     test_adc_manager.cpp
-    ${LIB_HAL_SRC}/hal/i2c/platforms/i2c_master_default.cpp
-    ${LIB_HAL_SRC}/hal/spi/platforms/spi_master_default.cpp
-    ${LIB_HAL_SRC}/hal/uart/platforms/uart_default.cpp
+    ${LIB_HAL_SRC}/ungula/hal/i2c/platforms/i2c_master_default.cpp
+    ${LIB_HAL_SRC}/ungula/hal/spi/platforms/spi_master_default.cpp
+    ${LIB_HAL_SRC}/ungula/hal/uart/platforms/uart_default.cpp
 )
 target_link_libraries(test_ungula_hal gtest_main)
 

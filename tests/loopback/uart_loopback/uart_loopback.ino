@@ -2,7 +2,7 @@
 // Wire: connect TX2 (GPIO 17) to RX2 (GPIO 16) with a jumper wire.
 // Opens UART2, sends a known pattern, reads it back and verifies.
 
-#include <ungula_hal.h>
+#include <ungula/hal.h>
 
 static constexpr uint8_t TX_PIN = 17;
 static constexpr uint8_t RX_PIN = 16;

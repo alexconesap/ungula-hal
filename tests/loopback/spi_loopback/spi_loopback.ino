@@ -3,7 +3,7 @@
 // CS (GPIO 5) left unconnected (driven by the SPI peripheral).
 // Sends a pattern via MOSI, reads it back on MISO, and verifies.
 
-#include <ungula_hal.h>
+#include <ungula/hal.h>
 
 static constexpr uint8_t SCLK_PIN = 18;
 static constexpr uint8_t MISO_PIN = 19;

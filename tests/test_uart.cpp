@@ -4,11 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <hal/uart/uart.h>
+#include <ungula/hal/uart/uart.h>
 
 namespace {
 
-    using ungula::uart::Uart;
+    using ungula::hal::uart::Uart;
 
     TEST(UartStubTest, ConstructorSetsPort) {
         Uart uart(2);

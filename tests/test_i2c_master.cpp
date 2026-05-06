@@ -4,13 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <hal/i2c/i2c_master.h>
+#include <ungula/hal/i2c/i2c_master.h>
 
 #include <cstring>
 
 namespace {
 
-    using ungula::i2c::I2cMaster;
+    using ungula::hal::i2c::I2cMaster;
 
     TEST(I2cMasterStubTest, ConstructorSetsPort) {
         I2cMaster bus(0);

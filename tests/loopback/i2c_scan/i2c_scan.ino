@@ -4,7 +4,7 @@
 // With nothing connected, you should see 0 devices (confirms the bus is alive
 // and not stuck).
 
-#include <ungula_hal.h>
+#include <ungula/hal.h>
 
 static constexpr uint8_t SDA_PIN = 21;
 static constexpr uint8_t SCL_PIN = 22;

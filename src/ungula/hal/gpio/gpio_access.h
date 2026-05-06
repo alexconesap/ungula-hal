@@ -11,7 +11,7 @@
 /// ungula::gpio namespace and defines the UNGULA_ISR_ATTR macro.
 ///
 /// Usage:
-///   #include <hal/gpio/gpio_access.h>   // cross-library
+///   #include <ungula/hal/gpio/gpio_access.h>   // cross-library
 ///
 /// Two API layers for digital I/O:
 ///

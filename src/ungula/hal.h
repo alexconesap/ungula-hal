@@ -11,16 +11,16 @@
 // Include this header to activate the library in Arduino
 
 // GPIO (digital I/O, PWM, interrupts)
-#include "hal/gpio/gpio_access.h"
+#include "ungula/hal/gpio/gpio_access.h"
 
 // ADC (oneshot with per-unit/attenuation calibration)
-#include "hal/adc/adc_manager.h"
+#include "ungula/hal/adc/adc_manager.h"
 
 // UART (serial communication)
-#include "hal/uart/uart.h"
+#include "ungula/hal/uart/uart.h"
 
 // I2C master
-#include "hal/i2c/i2c_master.h"
+#include "ungula/hal/i2c/i2c_master.h"
 
 // SPI master
-#include "hal/spi/spi_master.h"
+#include "ungula/hal/spi/spi_master.h"

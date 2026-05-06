@@ -11,18 +11,18 @@ This library is the only place direct Arduino / vendor APIs are allowed. Everyth
 ### Use case: blink an LED with checked configuration, unchecked hot-path writes
 
 ```cpp
-#include <ungula_hal.h>
-#include <hal/gpio/gpio_access.h>
+#include <ungula/hal.h>
+#include <ungula/hal/gpio/gpio_access.h>
 
 constexpr uint8_t LED_PIN = 2;
 
 void setup() {
-    ungula::gpio::configOutput(LED_PIN);
-    ungula::gpio::setLow(LED_PIN);
+    ungula::hal::gpio::configOutput(LED_PIN);
+    ungula::hal::gpio::setLow(LED_PIN);
 }
 
 void loop() {
-    ungula::gpio::toggle(LED_PIN);
+    ungula::hal::gpio::toggle(LED_PIN);
     // pacing handled by the project's TimeControl, not delay()
 }
 ```
@@ -32,7 +32,7 @@ When to use this: any digital output where the pin is known at compile time and 
 ### Use case: read a button with pull-up and a falling-edge interrupt
 
 ```cpp
-#include <hal/gpio/gpio_access.h>
+#include <ungula/hal/gpio/gpio_access.h>
 
 constexpr uint8_t BUTTON_PIN = 4;
 
@@ -41,12 +41,12 @@ void UNGULA_ISR_ATTR onButton(void* /*ctx*/) {
 }
 
 void setup() {
-    using ungula::gpio::InterruptEdge;
-    using ungula::gpio::PullMode;
+    using ungula::hal::gpio::InterruptEdge;
+    using ungula::hal::gpio::PullMode;
 
-    ungula::gpio::configInputInterrupt(BUTTON_PIN, InterruptEdge::EDGE_FALLING, PullMode::UP);
-    ungula::gpio::installIsrService();
-    ungula::gpio::addIsrHandler(BUTTON_PIN, &onButton, nullptr);
+    ungula::hal::gpio::configInputInterrupt(BUTTON_PIN, InterruptEdge::EDGE_FALLING, PullMode::UP);
+    ungula::hal::gpio::installIsrService();
+    ungula::hal::gpio::addIsrHandler(BUTTON_PIN, &onButton, nullptr);
 }
 
 void loop() {}
@@ -57,13 +57,13 @@ When to use this: any input that must wake on edge events without polling. `inst
 ### Use case: PWM fan / LED dimming via LEDC
 
 ```cpp
-#include <hal/gpio/gpio_access.h>
+#include <ungula/hal/gpio/gpio_access.h>
 
 constexpr uint8_t FAN_PIN = 25;
 
 void setup() {
-    ungula::gpio::configPwm(FAN_PIN, /*freqHz=*/25000, /*resolutionBits=*/8);
-    ungula::gpio::writePwm(FAN_PIN, 128);  // 50% duty at 8-bit resolution
+    ungula::hal::gpio::configPwm(FAN_PIN, /*freqHz=*/25000, /*resolutionBits=*/8);
+    ungula::hal::gpio::writePwm(FAN_PIN, 128);  // 50% duty at 8-bit resolution
 }
 
 void loop() {}
@@ -74,16 +74,16 @@ When to use this: fans, LED dimming, or any frequency-controlled output. `config
 ### Use case: ADC read with calibration
 
 ```cpp
-#include <hal/adc/adc_manager.h>
+#include <ungula/hal/adc/adc_manager.h>
 
-ungula::adc::AdcManager adc;
+ungula::hal::adc::AdcManager adc;
 
 constexpr uint8_t SENSE_PIN = 34;
 constexpr uint8_t REF_PIN = 35;
 
 void setup() {
     adc.configure(SENSE_PIN);                                // default DB_12 → 0..3.3 V
-    adc.configure(REF_PIN, ungula::adc::Attenuation::DB_6);  // 0..1.75 V, finer resolution
+    adc.configure(REF_PIN, ungula::hal::adc::Attenuation::DB_6);  // 0..1.75 V, finer resolution
 }
 
 void loop() {
@@ -101,9 +101,9 @@ When to use this: any analog-input read. Configure every channel from a single c
 ### Use case: I2C register read
 
 ```cpp
-#include <hal/i2c/i2c_master.h>
+#include <ungula/hal/i2c/i2c_master.h>
 
-ungula::i2c::I2cMaster bus(0);  // I2C port 0
+ungula::hal::i2c::I2cMaster bus(0);  // I2C port 0
 
 constexpr uint8_t DEVICE_ADDR = 0x2A;
 
@@ -123,9 +123,9 @@ When to use this: standard I2C peripherals exposing a register file. `writeRead(
 ### Use case: SPI device on SPI2
 
 ```cpp
-#include <hal/spi/spi_master.h>
+#include <ungula/hal/spi/spi_master.h>
 
-ungula::spi::SpiMaster spi;
+ungula::hal::spi::SpiMaster spi;
 
 void setup() {
     spi.begin(/*sclkPin=*/18, /*misoPin=*/19, /*mosiPin=*/23,
@@ -144,9 +144,9 @@ When to use this: a single device per `SpiMaster` instance, one CS line per inst
 ### Use case: UART transmit/receive
 
 ```cpp
-#include <hal/uart/uart.h>
+#include <ungula/hal/uart/uart.h>
 
-ungula::uart::Uart uart(2);  // ESP32 UART port 2
+ungula::hal::uart::Uart uart(2);  // ESP32 UART port 2
 
 void setup() {
     uart.begin(/*baud=*/115200, /*txPin=*/17, /*rxPin=*/16);
@@ -172,19 +172,19 @@ When to use this: any serial protocol (Modbus, NMEA, custom). One `Uart` per phy
 
 Public namespaces:
 
-- `ungula::gpio` — digital I/O, edge interrupts, PWM (free functions)
-- `ungula::adc` — `AdcManager` class, `Attenuation`, `CaliScheme`
-- `ungula::i2c` — `I2cMaster` class
-- `ungula::spi` — `SpiMaster` class
-- `ungula::uart` — `Uart` class, `DEFAULT_RX_BUF`, `DEFAULT_TX_BUF`
+- `ungula::hal::gpio` — digital I/O, edge interrupts, PWM (free functions)
+- `ungula::hal::adc` — `AdcManager` class, `Attenuation`, `CaliScheme`
+- `ungula::hal::i2c` — `I2cMaster` class
+- `ungula::hal::spi` — `SpiMaster` class
+- `ungula::hal::uart` — `Uart` class, `DEFAULT_RX_BUF`, `DEFAULT_TX_BUF`
 
-Top-level chain header: `<ungula_hal.h>`. Including it pulls in every subsystem header. For finer-grained includes, use the per-subsystem headers shown in the use cases.
+Top-level chain header: `<ungula/hal.h>`. Including it pulls in every subsystem header. For finer-grained includes, use the per-subsystem headers shown in the use cases.
 
 ---
 
 ## Public types
 
-### `ungula::gpio::InterruptEdge`
+### `ungula::hal::gpio::InterruptEdge`
 
 ```cpp
 enum class InterruptEdge : uint8_t { EDGE_RISING = 0, EDGE_FALLING = 1, EDGE_ANY = 2 };
@@ -192,7 +192,7 @@ enum class InterruptEdge : uint8_t { EDGE_RISING = 0, EDGE_FALLING = 1, EDGE_ANY
 
 Edge selection for `configInputInterrupt()`.
 
-### `ungula::gpio::PullMode`
+### `ungula::hal::gpio::PullMode`
 
 ```cpp
 enum class PullMode : uint8_t { NONE = 0, UP = 1, DOWN = 2 };
@@ -200,7 +200,7 @@ enum class PullMode : uint8_t { NONE = 0, UP = 1, DOWN = 2 };
 
 Internal pull-resistor selection for interrupt-enabled inputs. Default for `configInputInterrupt()` is `NONE` (assume external pull).
 
-### `ungula::gpio::GpioIsrHandler`
+### `ungula::hal::gpio::GpioIsrHandler`
 
 ```cpp
 using GpioIsrHandler = void (*)(void*);
@@ -212,7 +212,7 @@ ISR callback signature. Place the function with `UNGULA_ISR_ATTR` so it lands in
 
 Preprocessor macro. On ESP32 expands to `IRAM_ATTR`; on the default backend expands to nothing. Apply to any function called from ISR context.
 
-### `ungula::adc::Attenuation`
+### `ungula::hal::adc::Attenuation`
 
 ```cpp
 enum class Attenuation : uint8_t {
@@ -225,7 +225,7 @@ enum class Attenuation : uint8_t {
 
 Per-channel attenuation. The class tracks one calibration handle per `(unit, attenuation)` pair, so mixing attenuations on the same ADC unit is correct.
 
-### `ungula::adc::CaliScheme`
+### `ungula::hal::adc::CaliScheme`
 
 ```cpp
 enum class CaliScheme : uint8_t { None, CurveFitting, LineFitting };
@@ -233,7 +233,7 @@ enum class CaliScheme : uint8_t { None, CurveFitting, LineFitting };
 
 Internal record of which calibration scheme the driver picked at runtime. Not used by callers; exposed for completeness.
 
-### `ungula::adc::AdcManager`
+### `ungula::hal::adc::AdcManager`
 
 Owning class for the ADC peripheral. Non-copyable. Fields are private.
 
@@ -243,20 +243,20 @@ Public constants:
 - `static constexpr size_t UNIT_COUNT = 2` (ESP32 backend only).
 - `static constexpr size_t ATTEN_COUNT = 4` (ESP32 backend only).
 
-### `ungula::uart::Uart`
+### `ungula::hal::uart::Uart`
 
 Owning class for one hardware UART port. Non-copyable. `port()` returns the index passed at construction.
 
 Constants:
 
-- `constexpr uint16_t ungula::uart::DEFAULT_RX_BUF = 256;`
-- `constexpr uint16_t ungula::uart::DEFAULT_TX_BUF = 0;` — `0` means blocking writes (no TX ring buffer).
+- `constexpr uint16_t ungula::hal::uart::DEFAULT_RX_BUF = 256;`
+- `constexpr uint16_t ungula::hal::uart::DEFAULT_TX_BUF = 0;` — `0` means blocking writes (no TX ring buffer).
 
-### `ungula::i2c::I2cMaster`
+### `ungula::hal::i2c::I2cMaster`
 
 Owning class for one I2C master port. Non-copyable. `port()` returns the index passed at construction.
 
-### `ungula::spi::SpiMaster`
+### `ungula::hal::spi::SpiMaster`
 
 Owning class for one SPI device on a bus. Non-copyable. One instance per chip-select line.
 
@@ -267,11 +267,11 @@ Owning class for one SPI device on a bus. Non-copyable. One instance per chip-se
 ### GPIO — pin configuration (always validated)
 
 ```cpp
-bool ungula::gpio::configOutput(uint8_t pin);
-bool ungula::gpio::configInput(uint8_t pin);
-bool ungula::gpio::configInputPullup(uint8_t pin);
-bool ungula::gpio::configInputPulldown(uint8_t pin);
-bool ungula::gpio::configOutputOpenDrain(uint8_t pin);
+bool ungula::hal::gpio::configOutput(uint8_t pin);
+bool ungula::hal::gpio::configInput(uint8_t pin);
+bool ungula::hal::gpio::configInputPullup(uint8_t pin);
+bool ungula::hal::gpio::configInputPulldown(uint8_t pin);
+bool ungula::hal::gpio::configOutputOpenDrain(uint8_t pin);
 ```
 
 - **Purpose** — set direction and pull state in one atomic ESP-IDF call.
@@ -283,15 +283,15 @@ bool ungula::gpio::configOutputOpenDrain(uint8_t pin);
 ### GPIO — unchecked digital I/O (hot-path)
 
 ```cpp
-bool ungula::gpio::read(uint8_t pin);
-void ungula::gpio::setHigh(uint8_t pin);
-void ungula::gpio::setLow(uint8_t pin);
-void ungula::gpio::write(uint8_t pin, bool high);
-void ungula::gpio::writeHigh(uint8_t pin);
-void ungula::gpio::writeLow(uint8_t pin);
-void ungula::gpio::toggle(uint8_t pin);
-bool ungula::gpio::isHigh(uint8_t pin);
-bool ungula::gpio::isLow(uint8_t pin);
+bool ungula::hal::gpio::read(uint8_t pin);
+void ungula::hal::gpio::setHigh(uint8_t pin);
+void ungula::hal::gpio::setLow(uint8_t pin);
+void ungula::hal::gpio::write(uint8_t pin, bool high);
+void ungula::hal::gpio::writeHigh(uint8_t pin);
+void ungula::hal::gpio::writeLow(uint8_t pin);
+void ungula::hal::gpio::toggle(uint8_t pin);
+bool ungula::hal::gpio::isHigh(uint8_t pin);
+bool ungula::hal::gpio::isLow(uint8_t pin);
 ```
 
 - **Purpose** — single-cycle GPIO access for ISRs, timers, PID loops.
@@ -302,10 +302,10 @@ bool ungula::gpio::isLow(uint8_t pin);
 ### GPIO — checked digital I/O (untrusted pin source)
 
 ```cpp
-bool ungula::gpio::checkedRead(uint8_t pin, bool& out);
-bool ungula::gpio::checkedSetHigh(uint8_t pin);
-bool ungula::gpio::checkedSetLow(uint8_t pin);
-bool ungula::gpio::checkedWrite(uint8_t pin, bool high);
+bool ungula::hal::gpio::checkedRead(uint8_t pin, bool& out);
+bool ungula::hal::gpio::checkedSetHigh(uint8_t pin);
+bool ungula::hal::gpio::checkedSetLow(uint8_t pin);
+bool ungula::hal::gpio::checkedWrite(uint8_t pin, bool high);
 ```
 
 - **Purpose** — same as the unchecked variants but validate the pin against the SoC bitmask first.
@@ -315,12 +315,12 @@ bool ungula::gpio::checkedWrite(uint8_t pin, bool high);
 ### GPIO — interrupts
 
 ```cpp
-bool ungula::gpio::configInputInterrupt(uint8_t pin,
-                                        ungula::gpio::InterruptEdge edge,
-                                        ungula::gpio::PullMode pull = ungula::gpio::PullMode::NONE);
-bool ungula::gpio::installIsrService();
-bool ungula::gpio::addIsrHandler(uint8_t pin, ungula::gpio::GpioIsrHandler handler, void* context);
-bool ungula::gpio::removeIsrHandler(uint8_t pin);
+bool ungula::hal::gpio::configInputInterrupt(uint8_t pin,
+                                        ungula::hal::gpio::InterruptEdge edge,
+                                        ungula::hal::gpio::PullMode pull = ungula::hal::gpio::PullMode::NONE);
+bool ungula::hal::gpio::installIsrService();
+bool ungula::hal::gpio::addIsrHandler(uint8_t pin, ungula::hal::gpio::GpioIsrHandler handler, void* context);
+bool ungula::hal::gpio::removeIsrHandler(uint8_t pin);
 ```
 
 - **Purpose** — wire a GPIO to an interrupt vector and attach a handler.
@@ -331,8 +331,8 @@ bool ungula::gpio::removeIsrHandler(uint8_t pin);
 ### GPIO — PWM
 
 ```cpp
-bool ungula::gpio::configPwm(uint8_t pin, uint32_t freqHz = 1000, uint8_t resolutionBits = 8);
-bool ungula::gpio::writePwm(uint8_t pin, uint32_t duty);
+bool ungula::hal::gpio::configPwm(uint8_t pin, uint32_t freqHz = 1000, uint8_t resolutionBits = 8);
+bool ungula::hal::gpio::writePwm(uint8_t pin, uint32_t duty);
 ```
 
 - **Purpose** — assign an LEDC channel to the pin and drive duty cycle.
@@ -340,10 +340,10 @@ bool ungula::gpio::writePwm(uint8_t pin, uint32_t duty);
 - **Side effects** — claims one LEDC channel per pin from a finite pool. State lives in `gpio_pwm_esp32.cpp` (single TU, shared across the firmware).
 - **Failure behavior** — channel pool exhaustion or invalid pin → `false`. `writePwm()` clamps duty to `(2^resolutionBits - 1)` to avoid hardware overflow.
 
-### `ungula::adc::AdcManager`
+### `ungula::hal::adc::AdcManager`
 
 ```cpp
-bool configure(uint8_t pin, ungula::adc::Attenuation atten = ungula::adc::Attenuation::DB_12);
+bool configure(uint8_t pin, ungula::hal::adc::Attenuation atten = ungula::hal::adc::Attenuation::DB_12);
 bool readMv(uint8_t pin, uint32_t& mv) const;
 bool readRaw(uint8_t pin, int& raw) const;
 void deinit() noexcept;
@@ -356,7 +356,7 @@ void deinit() noexcept;
 - **Failure behavior** — returns `false`; never throws. Does not allocate after `configure()`.
 - **Side effects** — `configure()` claims an ESP-IDF oneshot unit handle and possibly a cali handle. ADC2 channels conflict with Wi-Fi; prefer ADC1 (GPIO 32–39) when the radio is up.
 
-### `ungula::i2c::I2cMaster`
+### `ungula::hal::i2c::I2cMaster`
 
 ```cpp
 explicit I2cMaster(uint8_t portNumber);
@@ -376,7 +376,7 @@ uint8_t port() const;
 - **Failure behavior** — return `false` on NACK, timeout, or driver error. Never throws.
 - **Side effects** — owns the driver for the port. Destructor uninstalls it.
 
-### `ungula::spi::SpiMaster`
+### `ungula::hal::spi::SpiMaster`
 
 ```cpp
 SpiMaster();
@@ -397,14 +397,14 @@ bool writeRead(const uint8_t* txData, size_t writeLen, uint8_t* rxBuf, size_t re
 - **Side effects** — adds one device handle to the bus; destructor removes the device but leaves the bus initialised so other `SpiMaster` instances can keep using it.
 - **Usage notes** — for multiple devices on the same bus, share `host` and use distinct `csPin` per instance.
 
-### `ungula::uart::Uart`
+### `ungula::hal::uart::Uart`
 
 ```cpp
 explicit Uart(uint8_t portNumber);
 ~Uart();
 bool begin(uint32_t baudRate, uint8_t txPin, uint8_t rxPin,
-           uint16_t rxBufSize = ungula::uart::DEFAULT_RX_BUF,
-           uint16_t txBufSize = ungula::uart::DEFAULT_TX_BUF);
+           uint16_t rxBufSize = ungula::hal::uart::DEFAULT_RX_BUF,
+           uint16_t txBufSize = ungula::hal::uart::DEFAULT_TX_BUF);
 int32_t write(const uint8_t* data, size_t length);
 int32_t read(uint8_t* buffer, size_t maxLength, uint32_t timeoutMs);
 void flush();
@@ -456,10 +456,10 @@ Calling unchecked GPIO functions on a pin you never configured is undefined beha
 
 ## Internals not part of the public API
 
-- `ungula::gpio::detail::isValidGpio`, `ungula::gpio::detail::isValidOutputGpio` — pin-bitmask helpers used by the checked variants. Not part of the surface.
+- `ungula::hal::gpio::detail::isValidGpio`, `ungula::hal::gpio::detail::isValidOutputGpio` — pin-bitmask helpers used by the checked variants. Not part of the surface.
 - `AdcManager` private members (`ChannelInfo`, `CaliEntry`, `channels_`, `units_`, `cali_`, `ensureUnit`, `ensureCalibration`, `findChannel`, `unitToIndex`, `attenToIndex`, `toIdfAttenuation`, `fallbackFullScaleMv`, `rawToMvFallback`) — implementation detail. Use only the public methods.
 - `I2cMaster::installed_`, `Uart::installed_`, `Uart::port_`, `I2cMaster::port_`, `SpiMaster::installed_`, `SpiMaster::devHandle_` — private state.
-- Files under `src/hal/*/platforms/` — picked at compile time by the bridge headers (`gpio_access.h`, `adc_manager.h`) or by build glob (`i2c_master_*.cpp`, `spi_master_*.cpp`, `uart_*.cpp`). Do not include the platform headers directly; always go through the bridge header or `<ungula_hal.h>`.
+- Files under `src/ungula/hal/*/platforms/` — picked at compile time by the bridge headers (`gpio_access.h`, `adc_manager.h`) or by build glob (`i2c_master_*.cpp`, `spi_master_*.cpp`, `uart_*.cpp`). Do not include the platform headers directly; always go through the bridge header or `<ungula/hal.h>`.
 - `gpio_pwm_esp32.cpp` — owner of the LEDC channel pool. Do not poke it from outside.
 - `library.properties` lists `architectures=esp32`, but the default-platform stubs allow host unit-test builds. The stub backend is for tests only — its return values are not a contract.
 
@@ -483,7 +483,7 @@ These are notes for future work. Do not assume any of them exist.
 ## LLM usage rules
 
 - Use only the symbols documented above. If the task seems to need something else (e.g. SPI half-duplex with explicit timing, ADC continuous mode, UART parity), say so explicitly — do not invent a function.
-- Always go through the bridge headers (`<hal/gpio/gpio_access.h>`, `<hal/adc/adc_manager.h>`) or the chain header `<ungula_hal.h>`. Never include `platforms/*` directly.
+- Always go through the bridge headers (`<ungula/hal/gpio/gpio_access.h>`, `<ungula/hal/adc/adc_manager.h>`) or the chain header `<ungula/hal.h>`. Never include `platforms/*` directly.
 - Do not call `Arduino.h` APIs (`millis`, `digitalWrite`, `pinMode`, `Serial.print*`, `String`) anywhere. Use this library plus the project's `ungula::TimeControl` and `string_t`.
 - Configure pins / ports / channels in `setup()`. The hot path (`loop()` / tasks / ISRs) must not allocate or reconfigure.
 - Prefer the unchecked GPIO functions inside ISRs and timing-critical loops; prefer the checked variants when the pin number is from configuration.
