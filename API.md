@@ -23,7 +23,7 @@ void setup() {
 
 void loop() {
     ungula::hal::gpio::toggle(LED_PIN);
-    // pacing handled by the project's TimeControl, not delay()
+    // pacing handled by the project's `ungula::core::time` API, not delay()
 }
 ```
 
@@ -484,7 +484,7 @@ These are notes for future work. Do not assume any of them exist.
 
 - Use only the symbols documented above. If the task seems to need something else (e.g. SPI half-duplex with explicit timing, ADC continuous mode, UART parity), say so explicitly — do not invent a function.
 - Always go through the bridge headers (`<ungula/hal/gpio/gpio_access.h>`, `<ungula/hal/adc/adc_manager.h>`) or the chain header `<ungula/hal.h>`. Never include `platforms/*` directly.
-- Do not call `Arduino.h` APIs (`millis`, `digitalWrite`, `pinMode`, `Serial.print*`, `String`) anywhere. Use this library plus the project's `ungula::TimeControl` and `string_t`.
+- Do not call `Arduino.h` APIs (`millis`, `digitalWrite`, `pinMode`, `Serial.print*`, `String`) anywhere. Use this library plus the project's `ungula::core::time` and `string_t`.
 - Configure pins / ports / channels in `setup()`. The hot path (`loop()` / tasks / ISRs) must not allocate or reconfigure.
 - Prefer the unchecked GPIO functions inside ISRs and timing-critical loops; prefer the checked variants when the pin number is from configuration.
 - ISR handlers must be tagged `UNGULA_ISR_ATTR`.
