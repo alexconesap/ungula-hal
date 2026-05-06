@@ -34,6 +34,8 @@
 /// which compiles to direct register writes (W1TS/W1TC) — single-cycle
 /// GPIO access safe for timer ISRs.
 
+#include <stdint.h>
+
 #if defined(ESP_PLATFORM)
 #include "platforms/gpio_access_esp32.h"
 #else

@@ -48,6 +48,7 @@
 #include "esp_attr.h"
 #include "hal/gpio_ll.h"
 #include "soc/soc_caps.h"
+#include "hal/gpio/gpio_types.h"
 
 // ISR placement attribute — puts the function in IRAM so it survives flash ops.
 #define UNGULA_ISR_ATTR IRAM_ATTR
@@ -133,7 +134,8 @@ namespace ungula {
             return gpio_config(&cfg) == ESP_OK;
         }
 
-        inline bool configRelay(uint8_t pin, bool active_low = true, bool enable_pullup = true) {
+        inline bool configOutputRelay(uint8_t pin,
+                                      RelayPolarity active_low = RelayPolarity::ActiveLow) {
             if (!detail::isValidOutputGpio(pin)) {
                 return false;
             }
@@ -141,7 +143,7 @@ namespace ungula {
             gpio_config_t cfg = {};
             cfg.pin_bit_mask = 1ULL << pin;
             cfg.mode = GPIO_MODE_OUTPUT;
-            cfg.pull_up_en = enable_pullup ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+            cfg.pull_up_en = GPIO_PULLUP_DISABLE;
             cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
             cfg.intr_type = GPIO_INTR_DISABLE;
 
@@ -149,8 +151,11 @@ namespace ungula {
                 return false;
             }
 
-            const int off_level = active_low ? 1 : 0;
-            return gpio_set_level(static_cast<gpio_num_t>(pin), off_level) == ESP_OK;
+            const int off_level = active_low == RelayPolarity::ActiveLow ? 1 : 0;
+            if (gpio_set_level(static_cast<gpio_num_t>(pin), off_level) != ESP_OK) {
+                return false;
+            }
+            return gpio_get_level(static_cast<gpio_num_t>(pin)) == off_level;
         }
 
         inline bool configOutputOpenDrain(uint8_t pin) {
@@ -210,6 +215,32 @@ namespace ungula {
         /// @param pin GPIO number.
         inline void writeLow(uint8_t pin) {
             setLow(pin);
+        }
+
+        /// @brief Wrapper for setHigh(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        inline void on(uint8_t pin) {
+            setHigh(pin);
+        }
+
+        /// @brief Wrapper for setLow(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        inline void off(uint8_t pin) {
+            setLow(pin);
+        }
+
+        /// @brief Wrapper for read(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        /// @return true if the pin is HIGH, false otherwise.
+        inline bool isOn(uint8_t pin) {
+            return read(pin);
+        }
+
+        /// @brief Wrapper for read(). Use only if your compiler optimizes inlined calls.
+        /// @param pin GPIO number.
+        /// @return true if the pin is LOW, false otherwise.
+        inline bool isOff(uint8_t pin) {
+            return !read(pin);
         }
 
         /// @brief Wrapper for read(). Use only if your compiler optimizes inlined calls.

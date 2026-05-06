@@ -11,6 +11,7 @@
 /// compile and link on desktop (tests, tools) without any platform SDK.
 
 #include <stdint.h>
+#include "hal/gpio/gpio_types.h"
 
 #define UNGULA_ISR_ATTR
 #define DEFAULT_GPIO_STATE false
@@ -35,6 +36,10 @@ namespace ungula {
         inline bool configOutputOpenDrain(uint8_t /*pin*/) {
             return true;
         }
+        inline bool configOutputRelay(uint8_t /*pin*/,
+                                      RelayPolarity /*active_low*/ = RelayPolarity::ActiveLow) {
+            return true;
+        }
 
         // ---- Digital read/write — unchecked (no-op) ----
 
@@ -49,7 +54,15 @@ namespace ungula {
         inline void toggle(uint8_t /*pin*/) {}
 
         // ---- Convenience helpers (unchecked) ----
+        inline void on(uint8_t /*pin*/) {}
+        inline void off(uint8_t /*pin*/) {}
 
+        inline bool isOn(uint8_t /*pin*/) {
+            return DEFAULT_GPIO_STATE;
+        }
+        inline bool isOff(uint8_t /*pin*/) {
+            return !DEFAULT_GPIO_STATE;
+        }
         inline bool isHigh(uint8_t /*pin*/) {
             return DEFAULT_GPIO_STATE;
         }

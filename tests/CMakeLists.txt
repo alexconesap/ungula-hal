@@ -26,6 +26,7 @@ include_directories(
 # No hardware needed: these exercise the default (non-ESP) implementations.
 # ---------------------------------------------------------------------------
 add_executable(test_ungula_hal
+    test_gpio_access.cpp
     test_i2c_master.cpp
     test_spi_master.cpp
     test_uart.cpp
