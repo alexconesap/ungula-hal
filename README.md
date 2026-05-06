@@ -298,3 +298,24 @@ cd tests
 ## License
 
 MIT License — see [LICENSE](LICENSE) file.
+
+---
+
+## Arduino CLI symlink note (rarely relevant)
+
+This library ships a flat forwarder header at `src/ungula_hal.h` that
+just `#include`s `ungula/hal.h`. `library.properties` `includes=` points
+at the forwarder.
+
+It only exists to work around an Arduino CLI quirk: when the library is
+consumed through a symlink, the CLI sometimes fails to discover headers
+nested under `src/ungula/`. The flat forwarder fixes that scan.
+
+**Host code keeps including the real header**:
+
+```cpp
+#include <ungula/hal.h>
+```
+
+PlatformIO, ESP-IDF component builds, and plain CMake setups can ignore
+the forwarder.
