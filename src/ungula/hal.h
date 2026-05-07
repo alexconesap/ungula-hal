@@ -3,6 +3,7 @@
 // See LICENSE file for details.
 
 #pragma once
+
 #ifndef __cplusplus
 #error UngulaHal requires a C++ compiler
 #endif
@@ -24,6 +25,9 @@
 
 // SPI master
 #include "ungula/hal/spi/spi_master.h"
+
+// CAN bus (CAN 2.0)
+#include "ungula/hal/can/can.h"
 
 // I2C multiplexer interface (drivers in ungula/hal/multiplexer/drivers/)
 #include "ungula/hal/multiplexer/i_multiplexer.h"

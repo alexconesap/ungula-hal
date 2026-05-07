@@ -84,6 +84,8 @@ void loop() {
 ### Interrupts
 
 ```cpp
+#include <ungula/hal.h>
+
 using ungula::hal::gpio::InterruptEdge;
 using ungula::hal::gpio::PullMode;
 
@@ -237,6 +239,68 @@ void readAdc(uint8_t* result, size_t len) {
 | `read(buffer, length)` | Read-only transfer (sends zeros). |
 | `writeRead(txData, writeLen, rxBuf, readLen)` | Write followed by read in a single CS assertion. |
 
+## CAN bus (`ungula/hal/can/can.h`)
+
+CAN 2.0 controller wrapper. On ESP32 it sits on top of ESP-IDF's TWAI driver (`driver/twai.h`); on the host build it's a no-op stub so consumers compile and unit-test off-device.
+
+The wrapper is for the **bus** itself. Higher-level protocols — servo motor command sets, OBD-II, J1939 — live in their own libraries that consume `ungula::hal::can::Can`.
+
+### Real-world use case — talk to a CAN servo motor
+
+```cpp
+#include <ungula/hal/can/can.h>
+
+namespace can = ungula::hal::can;
+
+can::Can bus(/*controller=*/0);
+
+void setup() {
+    bus.begin(/*tx=*/21, /*rx=*/22, can::BITRATE_1M);
+    bus.setAcceptanceFilter(/*id=*/0x141, /*mask=*/0x7FF, /*extendedId=*/false);
+}
+
+void sendVelocity(int32_t rpm) {
+    can::CanFrame f{};
+    f.id = 0x140;          // motor address
+    f.dlc = 8;
+    f.data[0] = 0xA2;      // "speed control" command
+    // ...pack rpm into bytes 4..7...
+    bus.send(f, /*timeoutMs=*/10);
+}
+
+void poll() {
+    can::CanFrame in{};
+    if (bus.receive(in, /*timeoutMs=*/0) == 1) {
+        // parse motor reply
+    }
+}
+```
+
+### Real-world use case — recover from bus-off after a wiring fault
+
+```cpp
+#include <ungula/hal.h>
+
+if (bus.isBusOff()) {
+    bus.recoverFromBusOff();   // controller resumes after a brief pause
+}
+```
+
+### CAN API
+
+| Method | Description |
+| --- | --- |
+| `begin(txPin, rxPin, bitrateBps)` | Install + start the controller at one of the `BITRATE_*` presets. |
+| `stop()` | Stop and uninstall the driver. Idempotent. |
+| `send(frame, timeoutMs)` | Transmit one frame. Returns false on timeout / error. |
+| `receive(out, timeoutMs)` | Receive one frame. Returns 1 on success, 0 on timeout, -1 on error. |
+| `setAcceptanceFilter(id, mask, extendedId)` | Single hardware filter; transparent stop+reinstall under the hood. |
+| `clearAcceptanceFilter()` | Accept-all (default). |
+| `isBusOff()` / `recoverFromBusOff()` | Bus-off detection + recovery. |
+| `controller()` | Hardware controller index. |
+
+Bitrate constants exposed in the same namespace: `BITRATE_25K` … `BITRATE_1M`. CAN-FD is not supported — separate class when the need arises.
+
 ## I2C multiplexer (`ungula/hal/multiplexer/i_multiplexer.h`)
 
 Driver-agnostic interface for I2C bus multiplexers. The host project owns the underlying `I2cMaster`, the multiplexer driver borrows it, and downstream code calls `selectChannel(n)` before talking to a device wired to channel `n`.
@@ -274,6 +338,8 @@ void readEncoders() {
 Two TCA9548s wired to the same I2C bus with strapping resistors `0x70` and `0x71`. Both share one `I2cMaster`; each driver only knows its own address.
 
 ```cpp
+#include <ungula/hal.h>
+
 ungula::hal::i2c::I2cMaster bus(0);
 mux::drivers::MultiplexerTCA9548 muxA(0x70, bus);
 mux::drivers::MultiplexerTCA9548 muxB(0x71, bus);
@@ -348,6 +414,11 @@ lib_hal/
           platforms/
             uart_esp32.cpp        # ESP-IDF uart driver wrapper
             uart_default.cpp      # no-op stubs for desktop builds
+        can/
+          can.h                   # platform-portable CAN 2.0 interface
+          platforms/
+            can_esp32.cpp         # ESP-IDF TWAI driver wrapper
+            can_default.cpp       # no-op stubs for desktop builds
         multiplexer/
           i_multiplexer.h         # interface + cached selectChannel
           i_multiplexer.cpp       # base behaviour (cache, retry, logging)
@@ -361,6 +432,7 @@ lib_hal/
     test_spi_master.cpp           # SPI stub tests
     test_uart.cpp                 # UART stub tests
     test_adc_manager.cpp          # AdcManager stub tests
+    test_can.cpp                  # CAN stub tests
     test_multiplexer.cpp          # IMultiplexer base + fake driver tests
 ```
 

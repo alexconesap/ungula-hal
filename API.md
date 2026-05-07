@@ -166,6 +166,33 @@ void loop() {}
 
 When to use this: any serial protocol (Modbus, NMEA, custom). One `Uart` per physical port — class is non-copyable.
 
+### Use case: CAN 2.0 bus to a servo motor
+
+```cpp
+#include <ungula/hal/can/can.h>
+
+namespace can = ungula::hal::can;
+
+can::Can bus(0);
+
+void setup() {
+    bus.begin(/*tx=*/21, /*rx=*/22, can::BITRATE_1M);
+    bus.setAcceptanceFilter(0x141, 0x7FF, /*extendedId=*/false);
+}
+
+void sendCommand(uint32_t motorId, const uint8_t* payload, uint8_t len) {
+    can::CanFrame f{};
+    f.id = motorId;
+    f.dlc = len;
+    for (uint8_t i = 0; i < len; ++i) {
+        f.data[i] = payload[i];
+    }
+    bus.send(f, /*timeoutMs=*/10);
+}
+```
+
+When to use this: any CAN 2.0 protocol (servo motors, OBD-II, J1939, custom). One `Can` per physical controller — class is non-copyable. Higher-level protocol parsing belongs in a consumer library.
+
 ### Use case: I2C bus multiplexer (TCA9548A)
 
 ```cpp
@@ -287,6 +314,16 @@ Owning class for one I2C master port. Non-copyable. `port()` returns the index p
 ### `ungula::hal::spi::SpiMaster`
 
 Owning class for one SPI device on a bus. Non-copyable. One instance per chip-select line.
+
+### `ungula::hal::can::Can`
+
+Owning class for one CAN 2.0 controller. Non-copyable. `controller()` returns the index passed at construction.
+
+### `ungula::hal::can::CanFrame`
+
+Plain-old struct: 32-bit `id` (11- or 29-bit per `extendedId`), `remote` flag, `dlc` 0..8, `data[8]`.
+
+Bitrate constants in the same namespace: `BITRATE_25K`, `BITRATE_50K`, `BITRATE_100K`, `BITRATE_125K`, `BITRATE_250K`, `BITRATE_500K`, `BITRATE_800K`, `BITRATE_1M`.
 
 ### `ungula::hal::multiplexer::IMultiplexer`
 
