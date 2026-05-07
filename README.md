@@ -237,6 +237,81 @@ void readAdc(uint8_t* result, size_t len) {
 | `read(buffer, length)` | Read-only transfer (sends zeros). |
 | `writeRead(txData, writeLen, rxBuf, readLen)` | Write followed by read in a single CS assertion. |
 
+## I2C multiplexer (`ungula/hal/multiplexer/i_multiplexer.h`)
+
+Driver-agnostic interface for I2C bus multiplexers. The host project owns the underlying `I2cMaster`, the multiplexer driver borrows it, and downstream code calls `selectChannel(n)` before talking to a device wired to channel `n`.
+
+The base class caches the active channel — repeated `selectChannel(n)` for the same `n` is a no-op (no I2C traffic) when the device is healthy. Real-world: a horizontal + vertical AS5600 encoder pair share a TCA9548A; the position read loop calls `selectChannel(0)` then reads several registers — only the first call hits the wire.
+
+### Real-world use case — single TCA9548 with two encoders
+
+```cpp
+#include <ungula/hal/i2c/i2c_master.h>
+#include <ungula/hal/multiplexer/drivers/multiplexer_tca9548.h>
+
+namespace mux = ungula::hal::multiplexer;
+
+ungula::hal::i2c::I2cMaster bus(0);
+mux::drivers::MultiplexerTCA9548 mux70(0x70, bus);
+
+void setup() {
+    bus.begin(21, 22, 400000);
+    if (!mux70.begin()) {
+        // I2C up but the chip is missing — handle accordingly
+        return;
+    }
+    mux70.enableLogging();  // route base-class diagnostics through EmblogX
+}
+
+void readEncoders() {
+    if (mux70.selectChannel(0)) { /* read the horizontal encoder */ }
+    if (mux70.selectChannel(1)) { /* read the vertical encoder   */ }
+}
+```
+
+### Real-world use case — two multiplexers on the same bus
+
+Two TCA9548s wired to the same I2C bus with strapping resistors `0x70` and `0x71`. Both share one `I2cMaster`; each driver only knows its own address.
+
+```cpp
+ungula::hal::i2c::I2cMaster bus(0);
+mux::drivers::MultiplexerTCA9548 muxA(0x70, bus);
+mux::drivers::MultiplexerTCA9548 muxB(0x71, bus);
+
+void setup() {
+    bus.begin(21, 22, 400000);
+    muxA.begin();
+    muxB.begin();
+}
+
+void readSensors() {
+    muxA.selectChannel(3);  // talk to A:3 device
+    // ... I2C transactions to A:3 ...
+    muxB.selectChannel(0);  // switch the other multiplexer; A:3 stays selected
+    // ... I2C transactions to B:0 ...
+}
+```
+
+### Multiplexer API
+
+| Method | Description |
+| --- | --- |
+| `begin()` | Probe the chip and mark it ready. Returns false when not responding. |
+| `selectChannel(channel)` | Cached + retried channel select. Returns false after `SELECT_RETRY_COUNT` failures. |
+| `getCurrentChannel()` | Last channel successfully selected; `0xFF` until first `selectChannel`. |
+| `restartBus()` | Forget cached state so the next `selectChannel` re-hits the wire. |
+| `isResponding()` | Probe the chip without changing channel state. |
+| `enableLogging()` / `disableLogging()` / `isLoggingEnabled()` | Toggle EmblogX diagnostics on this driver (`module="mux"`). |
+
+Drivers shipped:
+
+- `drivers/multiplexer_tca9548.h` — TCA9548A 8-channel I2C multiplexer.
+- `drivers/multiplexer_fake.h` — header-only fake for host tests (counters, scriptable failures).
+
+### Multiplexer logging
+
+Off by default. When enabled, every line goes through EmblogX with the module tag `mux`, so host filters can route them like any other category. Failures (init, retry exhausted) hit `log_error_m` regardless of level; channel-select traffic is `log_debug_m`. Logging is per-instance, not global — enable it on the chip you want to debug and leave the rest quiet.
+
 ## Structure
 
 ```text
@@ -273,12 +348,20 @@ lib_hal/
           platforms/
             uart_esp32.cpp        # ESP-IDF uart driver wrapper
             uart_default.cpp      # no-op stubs for desktop builds
+        multiplexer/
+          i_multiplexer.h         # interface + cached selectChannel
+          i_multiplexer.cpp       # base behaviour (cache, retry, logging)
+          drivers/
+            multiplexer_tca9548.h # TCA9548A driver
+            multiplexer_tca9548.cpp
+            multiplexer_fake.h    # header-only fake for tests
   tests/
     test_gpio_access.cpp          # GPIO stub tests (GoogleTest)
     test_i2c_master.cpp           # I2C stub tests
     test_spi_master.cpp           # SPI stub tests
     test_uart.cpp                 # UART stub tests
     test_adc_manager.cpp          # AdcManager stub tests
+    test_multiplexer.cpp          # IMultiplexer base + fake driver tests
 ```
 
 ## Testing

@@ -166,6 +166,34 @@ void loop() {}
 
 When to use this: any serial protocol (Modbus, NMEA, custom). One `Uart` per physical port — class is non-copyable.
 
+### Use case: I2C bus multiplexer (TCA9548A)
+
+```cpp
+#include <ungula/hal/i2c/i2c_master.h>
+#include <ungula/hal/multiplexer/drivers/multiplexer_tca9548.h>
+
+namespace mux = ungula::hal::multiplexer;
+
+ungula::hal::i2c::I2cMaster bus(0);
+mux::drivers::MultiplexerTCA9548 mux70(0x70, bus);
+
+void setup() {
+    bus.begin(21, 22, 400000);
+    mux70.begin();
+}
+
+void readSensorOnChannel(uint8_t channel, uint8_t addr, uint8_t reg,
+                         uint8_t* out, size_t n) {
+    if (mux70.selectChannel(channel)) {
+        bus.writeRead(addr, &reg, 1, out, n);
+    }
+}
+```
+
+When to use this: more I2C devices than the bus accommodates without address clashes (e.g. two AS5600 encoders that share the same fixed `0x36`). Repeat-calls to `selectChannel(n)` for the same `n` skip the wire — read-loop friendly.
+
+To debug a specific instance, call `mux70.enableLogging()`; lines flow through EmblogX with module tag `mux`.
+
 ---
 
 ## API
@@ -259,6 +287,18 @@ Owning class for one I2C master port. Non-copyable. `port()` returns the index p
 ### `ungula::hal::spi::SpiMaster`
 
 Owning class for one SPI device on a bus. Non-copyable. One instance per chip-select line.
+
+### `ungula::hal::multiplexer::IMultiplexer`
+
+Abstract base for I2C bus multiplexers. Concrete drivers live under `drivers/`. Caches the active channel; retries `SELECT_RETRY_COUNT` times on hardware failure. Per-instance EmblogX logging via `enableLogging()`/`disableLogging()` (off by default; module tag `mux`).
+
+### `ungula::hal::multiplexer::drivers::MultiplexerTCA9548`
+
+TCA9548A 8-channel multiplexer driver. Borrows a `I2cMaster&`; one bus can drive several multiplexers at different addresses (`0x70..0x77`).
+
+### `ungula::hal::multiplexer::drivers::MultiplexerFake`
+
+Header-only fake. Records `selectChannel_` calls, exposes scriptable failure injection (`failNextSelects(n)`, `setSelectAlwaysFails(true)`) and counters (`selectCallCount`, `restartCallCount`, etc.). Use it in any test that takes an `IMultiplexer*`.
 
 ---
 

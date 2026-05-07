@@ -24,3 +24,6 @@
 
 // SPI master
 #include "ungula/hal/spi/spi_master.h"
+
+// I2C multiplexer interface (drivers in ungula/hal/multiplexer/drivers/)
+#include "ungula/hal/multiplexer/i_multiplexer.h"
