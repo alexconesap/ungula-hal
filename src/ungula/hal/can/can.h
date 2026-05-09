@@ -41,10 +41,10 @@ namespace ungula::hal::can {
     /// (standard) and 29-bit (extended) IDs are supported via the
     /// `extendedId` flag.
     struct CanFrame {
-            uint32_t id;          // 11-bit (extendedId=false) or 29-bit (extendedId=true)
-            bool extendedId;      // selects ID width
-            bool remote;          // remote transmission request (rarely used)
-            uint8_t dlc;          // 0..8
+            uint32_t id;      // 11-bit (extendedId=false) or 29-bit (extendedId=true)
+            bool extendedId;  // selects ID width
+            bool remote;      // remote transmission request (rarely used)
+            uint8_t dlc;      // 0..8
             uint8_t data[8];
     };
 
