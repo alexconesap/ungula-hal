@@ -23,24 +23,24 @@ namespace ungula::hal::multiplexer {
         if (buf == nullptr || bufSize == 0) {
             return 0;
         }
-        const int n = snprintf(buf, bufSize, "[%s @0x%02X]",
-                               name_ != nullptr ? name_ : "?", i2cAddress_);
+        const int n =
+                snprintf(buf, bufSize, "[%s @0x%02X]", name_ != nullptr ? name_ : "?", i2cAddress_);
         return (n < 0) ? 0 : static_cast<size_t>(n);
     }
 
-#define UNGULA_MUX_DEFINE_LOG_HELPER(NAME, EMIT)                            \
-    void IMultiplexer::NAME(const char* fmt, ...) const {                   \
-        if (!loggingEnabled_) {                                             \
-            return;                                                         \
-        }                                                                   \
-        char prefix[LOG_PREFIX_CAPACITY];                                   \
-        formatLogPrefix(prefix, sizeof(prefix));                            \
-        char body[LOG_BODY_CAPACITY];                                       \
-        va_list ap;                                                         \
-        va_start(ap, fmt);                                                  \
-        vsnprintf(body, sizeof(body), fmt, ap);                             \
-        va_end(ap);                                                         \
-        EMIT(LOG_MODULE, "%s %s", prefix, body);                            \
+#define UNGULA_MUX_DEFINE_LOG_HELPER(NAME, EMIT)          \
+    void IMultiplexer::NAME(const char* fmt, ...) const { \
+        if (!loggingEnabled_) {                           \
+            return;                                       \
+        }                                                 \
+        char prefix[LOG_PREFIX_CAPACITY];                 \
+        formatLogPrefix(prefix, sizeof(prefix));          \
+        char body[LOG_BODY_CAPACITY];                     \
+        va_list ap;                                       \
+        va_start(ap, fmt);                                \
+        vsnprintf(body, sizeof(body), fmt, ap);           \
+        va_end(ap);                                       \
+        EMIT(LOG_MODULE, "%s %s", prefix, body);          \
     }
 
     UNGULA_MUX_DEFINE_LOG_HELPER(logInfof, log_info_m)
@@ -76,8 +76,7 @@ namespace ungula::hal::multiplexer {
         // All retries failed — mark unhealthy so the next call re-tries
         // even if the caller asks for the same channel.
         isFunctional_ = false;
-        logErrorf("select channel %u failed after %u retries", channel,
-                  SELECT_RETRY_COUNT);
+        logErrorf("select channel %u failed after %u retries", channel, SELECT_RETRY_COUNT);
         return false;
     }
 

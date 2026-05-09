@@ -1,10 +1,12 @@
 # UngulaHal
 
-> **High-performance embedded C++ libraries for ESP32, STM32 and other MCUs** — hardware abstraction layer (GPIO, PWM, ADC, UART, I2C, SPI).
+> **High-performance embedded C++ libraries for ESP32, STM32 and other MCUs** — hardware abstraction layer (GPIO, PWM, ADC, UART, I2C, SPI, CAN, multiplexer, PWM input capture, quadrature decoder).
 
-Hardware abstraction layer for embedded projects. Provides platform-portable GPIO, PWM, ADC, UART, I2C and SPI access.
+Hardware abstraction layer for embedded projects. Provides platform-portable GPIO, PWM, ADC, UART, I2C, SPI, CAN 2.0, an I2C bus multiplexer interface, single-pin PWM input capture, and quadrature (A/B) decoders.
 
-On ESP32, GPIO uses `gpio_ll` direct register writes (single-cycle, ISR-safe). UART wraps `esp_idf` uart driver. On other platforms, no-op stubs are provided for compilation.
+Each peripheral ships as a stable C++ interface in the `ungula::hal::` namespace, a concrete platform-dispatched driver, and (where appropriate) a header-only fake for host tests. Higher-level libraries (`lib_loadcell`, `lib_motor`, `lib_sd`, `lib_encoder`) compile against the abstractions, not the vendor SDKs.
+
+On ESP32, GPIO uses `gpio_ll` direct register writes (single-cycle, ISR-safe); UART, I2C, SPI and CAN wrap the matching ESP-IDF drivers; PWM input capture uses GPIO-edge ISR + `esp_timer`; the quadrature decoder uses the PCNT (pulse counter) peripheral with hardware 4× decoding. On other platforms (host builds), no-op stubs are provided so consumer code compiles and links for unit tests.
 
 ## Quick Start
 
@@ -378,6 +380,122 @@ Drivers shipped:
 
 Off by default. When enabled, every line goes through EmblogX with the module tag `mux`, so host filters can route them like any other category. Failures (init, retry exhausted) hit `log_error_m` regardless of level; channel-select traffic is `log_debug_m`. Logging is per-instance, not global — enable it on the chip you want to debug and leave the rest quiet.
 
+## PWM input capture (`ungula/hal/pwm_input/i_pwm_input.h`)
+
+Single-pin PWM-input capture. Wraps "this pin carries a PWM signal — give me the most recent high-pulse width and period". The chip behind the signal can be anything — AS5600 in PWM mode, MT6701 PWM mode, RC receivers, servo position feedback, etc. The HAL only cares about the timing of the edges.
+
+The interface is intentionally narrow: callers ask for the latest measurement; they do not subscribe to per-edge events. The backend (GPIO interrupt + `esp_timer` on ESP32) records the most recent rising-edge to falling-edge gap (high time) and rising-edge to rising-edge gap (period). After `begin()`, `hasSample()` stays `false` until a full period has been observed; once true, `sampleAgeUs()` reports microseconds since the last edge so callers can flag a stalled signal.
+
+### Real-world use case — read an AS5600 in PWM mode
+
+```cpp
+#include <ungula/hal/pwm_input/drivers/pwm_input.h>
+
+namespace pwm = ungula::hal::pwm_input;
+
+pwm::drivers::PwmInput cap;
+
+void setup() {
+    cap.begin(/*pin=*/34);
+}
+
+void loop() {
+    if (!cap.hasSample() || cap.sampleAgeUs() > 50000U) {
+        // signal stalled — flag it, but don't crash the read loop
+        return;
+    }
+    const uint32_t high   = cap.lastHighTimeUs();
+    const uint32_t period = cap.lastPeriodUs();
+    // AS5600 frame: 4351 chip clocks total, 128 high preamble.
+    // raw_angle = round(high / period * 4351) - 128
+}
+```
+
+In production this is exactly what `ungula::encoder::drivers::As5600Pwm` does internally — the encoder driver borrows an `IPwmInput&` and translates the high/period numbers into degrees.
+
+### PWM input API
+
+| Method | Description |
+| --- | --- |
+| `begin(pin)` | Install the capture for `pin`. Idempotent — second call returns `false`. |
+| `stop()` | Tear down. Safe to call when not installed. |
+| `lastHighTimeUs()` | Most recent high-pulse width in µs. `0` before the first complete period. |
+| `lastPeriodUs()` | Most recent rising-to-rising period in µs. `0` before the first complete period. |
+| `hasSample()` | `true` once at least one full period has been captured. |
+| `sampleAgeUs()` | Microseconds since the last edge. Pair with a threshold to detect a stalled signal. |
+| `pin()` | Pin the capture is bound to (valid only after `begin()`). |
+
+Drivers shipped:
+
+- `drivers/pwm_input.h` — concrete `IPwmInput`, platform-dispatched (ESP32 + host stub).
+- `drivers/pwm_input_fake.h` — header-only fake (sample injection + counters). For host tests of consumer drivers.
+
+## Quadrature decoder (`ungula/hal/quadrature/i_decoder.h`)
+
+A/B (and optional Z index) quadrature decoder. Wraps "I have an A/B pulse pair on these two pins — give me the signed count of edges". On ESP32 the backend is the PCNT peripheral configured for 4× quadrature decoding (every edge counts), with a virtual 32-bit accumulator on top of PCNT's 16-bit hardware counter. On host the backend is a counter you can move with `reset()` — useful for compile-checks, but not for simulating motion. Tests of consumer code drive `DecoderFake` instead.
+
+The interface is small on purpose: hardware decoders track motion in the background, so callers only need to read the count. Index handling (`hasIndex()`, `latchedAtIndex()`) is reported by backends that wire up Z; backends without a Z line keep the safe defaults (`false`).
+
+### Real-world use case — angle from an MT6701 in ABI mode
+
+```cpp
+#include <ungula/hal/quadrature/drivers/decoder.h>
+
+namespace quad = ungula::hal::quadrature;
+
+quad::drivers::Decoder dec;
+
+void setup() {
+    // 1024 PPR encoder × 4× quadrature = 4096 counts per revolution.
+    dec.begin(/*pinA=*/34, /*pinB=*/35, /*initial=*/0);
+}
+
+void loop() {
+    const int32_t count = dec.count();
+    const float degrees = static_cast<float>(count) * (360.0f / 4096.0f);
+    // ...
+}
+```
+
+This is what `ungula::encoder::drivers::Mt6701Abi` does — it borrows an `IDecoder&` and exposes degrees through the standard `IEncoder` API (`setCalibration`, `readAngle`).
+
+### Real-world use case — homing to a known reference
+
+```cpp
+#include <ungula/hal/quadrature/drivers/decoder.h>
+
+namespace quad = ungula::hal::quadrature;
+
+quad::drivers::Decoder dec;
+
+void homeAxis() {
+    // Drive the axis until the home switch trips; then snap the
+    // count to zero so subsequent reads are absolute.
+    if (homeSwitchTripped()) {
+        dec.reset(/*value=*/0);
+    }
+}
+```
+
+`reset()` clears both the hardware counter and the virtual accumulator, so the next `count()` starts from `value`.
+
+### Quadrature decoder API
+
+| Method | Description |
+| --- | --- |
+| `begin(pinA, pinB, initial=0)` | Install the decoder. Idempotent. Seeds the count with `initial`. |
+| `stop()` | Tear down. Idempotent. |
+| `count()` | Current signed count (32-bit on the ESP32 backend). |
+| `reset(value=0)` | Force the count to `value`. Use it for homing. |
+| `hasIndex()` | `true` when the backend tracks a Z (index) line. Default `false`. |
+| `latchedAtIndex()` | `true` when the latest count was captured at the Z pulse. Meaningful only when `hasIndex()`. |
+| `pinA()` / `pinB()` | Pins as supplied to `begin()`; `0xFF` until installed. |
+
+Drivers shipped:
+
+- `drivers/decoder.h` — concrete `IDecoder`, platform-dispatched (ESP32 PCNT + host stub).
+- `drivers/decoder_fake.h` — header-only fake (`tick(delta)`, `setCount`, index latching, counters). For host tests of consumer drivers.
+
 ## Structure
 
 ```text
@@ -426,6 +544,24 @@ lib_hal/
             multiplexer_tca9548.h # TCA9548A driver
             multiplexer_tca9548.cpp
             multiplexer_fake.h    # header-only fake for tests
+        pwm_input/
+          i_pwm_input.h           # abstract single-pin PWM-input capture
+          i_pwm_input.cpp         # translation-unit anchor
+          drivers/
+            pwm_input.h           # concrete IPwmInput, platform-dispatched
+            pwm_input_fake.h      # header-only fake for tests
+          platforms/
+            pwm_input_esp32.cpp   # GPIO ISR + esp_timer high/period capture
+            pwm_input_default.cpp # no-op stub for desktop builds
+        quadrature/
+          i_decoder.h             # abstract A/B (+ optional Z) decoder
+          i_decoder.cpp           # translation-unit anchor
+          drivers/
+            decoder.h             # concrete IDecoder, platform-dispatched
+            decoder_fake.h        # header-only fake for tests
+          platforms/
+            decoder_esp32.cpp     # PCNT (pulse_cnt) backend, 4× quadrature
+            decoder_default.cpp   # host stub (count moves only via reset)
   tests/
     test_gpio_access.cpp          # GPIO stub tests (GoogleTest)
     test_i2c_master.cpp           # I2C stub tests
@@ -434,6 +570,8 @@ lib_hal/
     test_adc_manager.cpp          # AdcManager stub tests
     test_can.cpp                  # CAN stub tests
     test_multiplexer.cpp          # IMultiplexer base + fake driver tests
+    test_pwm_input.cpp            # PwmInput stub + PwmInputFake tests
+    test_quadrature.cpp           # Decoder stub + DecoderFake tests
 ```
 
 ## Testing

@@ -48,7 +48,7 @@ namespace ungula::hal::multiplexer {
             ///              Borrowed pointer; the caller must keep it alive.
             /// @param i2cAddress  7-bit I2C address of the multiplexer.
             IMultiplexer(const char* name, uint8_t i2cAddress)
-                    : name_(name), i2cAddress_(i2cAddress) {}
+                : name_(name), i2cAddress_(i2cAddress) {}
 
             virtual ~IMultiplexer() = default;
 
@@ -120,14 +120,10 @@ namespace ungula::hal::multiplexer {
             /// produced by `formatLogPrefix()` so drivers never repeat
             /// the `[<name> @0x<addr>]` boilerplate. No-op when logging
             /// is disabled. Format-checked by the compiler.
-            void logInfof(const char* fmt, ...) const
-                    __attribute__((format(printf, 2, 3)));
-            void logWarnf(const char* fmt, ...) const
-                    __attribute__((format(printf, 2, 3)));
-            void logErrorf(const char* fmt, ...) const
-                    __attribute__((format(printf, 2, 3)));
-            void logDebugf(const char* fmt, ...) const
-                    __attribute__((format(printf, 2, 3)));
+            void logInfof(const char* fmt, ...) const __attribute__((format(printf, 2, 3)));
+            void logWarnf(const char* fmt, ...) const __attribute__((format(printf, 2, 3)));
+            void logErrorf(const char* fmt, ...) const __attribute__((format(printf, 2, 3)));
+            void logDebugf(const char* fmt, ...) const __attribute__((format(printf, 2, 3)));
 
             /// @brief Build the per-instance log prefix into `buf`.
             /// Default shape: `[<name> @0x<addr>]`. Drivers may override

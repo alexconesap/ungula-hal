@@ -29,7 +29,7 @@ namespace ungula::hal::multiplexer::drivers {
     class MultiplexerFake final : public IMultiplexer {
         public:
             MultiplexerFake(const char* name = "fake", uint8_t address = 0x70)
-                    : IMultiplexer(name, address) {}
+                : IMultiplexer(name, address) {}
 
             bool begin() override {
                 initiated_ = true;

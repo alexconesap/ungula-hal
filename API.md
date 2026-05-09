@@ -1,6 +1,6 @@
 # UngulaHal
 
-Embedded C++17 hardware abstraction layer (HAL) for ESP32-class MCUs. Wraps GPIO, PWM, ADC, UART, I2C, and SPI behind stable C++ interfaces in the `ungula::` namespace, so higher-level libraries (motor, loadcell, sd, etc.) compile against the abstractions instead of vendor SDKs. ESP32 backend uses `gpio_ll`, LEDC, `esp_adc`, ESP-IDF `uart_driver`, ESP-IDF legacy `driver/i2c.h`, and `driver/spi_master.h`. Non-ESP32 builds get no-op stubs that compile and link for host unit tests.
+Embedded C++17 hardware abstraction layer (HAL) for ESP32-class MCUs. Wraps GPIO, PWM, ADC, UART, I2C, SPI, CAN 2.0, an I2C bus multiplexer interface, single-pin PWM input capture, and quadrature (A/B) decoding behind stable C++ interfaces in the `ungula::hal::` namespace, so higher-level libraries (motor, loadcell, sd, encoder, etc.) compile against the abstractions instead of vendor SDKs. ESP32 backend uses `gpio_ll`, LEDC, `esp_adc`, ESP-IDF `uart_driver`, ESP-IDF legacy `driver/i2c.h`, `driver/spi_master.h`, `driver/twai.h`, GPIO ISRs + `esp_timer` (PWM input), and `driver/pulse_cnt.h` (PCNT, quadrature). Non-ESP32 builds get no-op stubs that compile and link for host unit tests; consumer-driver tests use the header-only fakes shipped with each peripheral that has an interface (`MultiplexerFake`, `PwmInputFake`, `DecoderFake`).
 
 This library is the only place direct Arduino / vendor APIs are allowed. Everything else in the project must call the symbols documented here.
 
@@ -221,6 +221,64 @@ When to use this: more I2C devices than the bus accommodates without address cla
 
 To debug a specific instance, call `mux70.enableLogging()`; lines flow through EmblogX with module tag `mux`.
 
+### Use case: PWM input capture (AS5600 in PWM-only mode)
+
+```cpp
+#include <ungula/hal/pwm_input/drivers/pwm_input.h>
+
+namespace pwm = ungula::hal::pwm_input;
+
+pwm::drivers::PwmInput cap;
+
+void setup() {
+    cap.begin(/*pin=*/34);
+}
+
+bool readEncoderRaw(uint16_t& rawAngle) {
+    if (!cap.hasSample() || cap.sampleAgeUs() > 50000U) {
+        return false;  // signal stalled
+    }
+    const uint64_t high   = cap.lastHighTimeUs();
+    const uint64_t period = cap.lastPeriodUs();
+    if (period == 0U || high > period) {
+        return false;
+    }
+    // AS5600 PWM frame: 4351 chip clocks total, 128 high preamble.
+    const uint64_t scaled = (high * 4351U + period / 2U) / period;
+    rawAngle = (scaled <= 128U) ? 0U
+             : static_cast<uint16_t>(scaled - 128U);
+    return true;
+}
+```
+
+When to use this: any peripheral whose state arrives as a duty-cycle on a single pin (AS5600 / MT6701 PWM, RC receiver channels, servo position feedback). Pair `hasSample()` with `sampleAgeUs()` to detect a stalled wire — the API does not throttle reads itself. For unit tests of the consumer code, swap `PwmInput` for `PwmInputFake` and call `injectSample()`.
+
+### Use case: quadrature (A/B) decoder for an MT6701 in ABI mode
+
+```cpp
+#include <ungula/hal/quadrature/drivers/decoder.h>
+
+namespace quad = ungula::hal::quadrature;
+
+quad::drivers::Decoder dec;
+
+void setup() {
+    // 1024 PPR encoder × 4× quadrature decode = 4096 counts/rev.
+    dec.begin(/*pinA=*/34, /*pinB=*/35, /*initial=*/0);
+}
+
+float angleDegrees() {
+    const int32_t count = dec.count();
+    return static_cast<float>(count) * (360.0f / 4096.0f);
+}
+
+void homeToZero() {
+    dec.reset(0);
+}
+```
+
+When to use this: any encoder reporting motion as A/B (and optional Z) pulses — incremental optical encoders, magnetic chips configured for ABI output, servo motor feedback. The ESP32 backend uses PCNT with a virtual 32-bit accumulator, so callers don't have to chase the hardware 16-bit limit. For unit tests, drive a `DecoderFake` with `tick(delta)` or `setCount(value)`.
+
 ---
 
 ## API
@@ -232,6 +290,10 @@ Public namespaces:
 - `ungula::hal::i2c` — `I2cMaster` class
 - `ungula::hal::spi` — `SpiMaster` class
 - `ungula::hal::uart` — `Uart` class, `DEFAULT_RX_BUF`, `DEFAULT_TX_BUF`
+- `ungula::hal::can` — `Can` class, `CanFrame`, `BITRATE_*` constants
+- `ungula::hal::multiplexer` — `IMultiplexer` interface; concrete drivers under `ungula::hal::multiplexer::drivers` (`MultiplexerTCA9548`, `MultiplexerFake`)
+- `ungula::hal::pwm_input` — `IPwmInput` interface; concrete + fake under `ungula::hal::pwm_input::drivers` (`PwmInput`, `PwmInputFake`)
+- `ungula::hal::quadrature` — `IDecoder` interface; concrete + fake under `ungula::hal::quadrature::drivers` (`Decoder`, `DecoderFake`)
 
 Top-level chain header: `<ungula/hal.h>`. Including it pulls in every subsystem header. For finer-grained includes, use the per-subsystem headers shown in the use cases.
 
@@ -336,6 +398,30 @@ TCA9548A 8-channel multiplexer driver. Borrows a `I2cMaster&`; one bus can drive
 ### `ungula::hal::multiplexer::drivers::MultiplexerFake`
 
 Header-only fake. Records `selectChannel_` calls, exposes scriptable failure injection (`failNextSelects(n)`, `setSelectAlwaysFails(true)`) and counters (`selectCallCount`, `restartCallCount`, etc.). Use it in any test that takes an `IMultiplexer*`.
+
+### `ungula::hal::pwm_input::IPwmInput`
+
+Abstract single-pin PWM-input capture. The interface only exposes "what was the most recent high-pulse width and period", not per-edge events — backends (GPIO ISR + `esp_timer` on ESP32) record the latest measurement asynchronously and callers poll. Non-copyable.
+
+### `ungula::hal::pwm_input::drivers::PwmInput`
+
+Concrete `IPwmInput`, platform-dispatched. ESP32 backend installs a per-pin GPIO ISR that timestamps both edges with `esp_timer_get_time()`. Host backend is a `begin/stop`-only stub — tests should use `PwmInputFake` for sample injection.
+
+### `ungula::hal::pwm_input::drivers::PwmInputFake`
+
+Header-only fake. Test knobs: `injectSample(highUs, periodUs)`, `setHighTimeUs`, `setPeriodUs`, `setHasSample`, `setSampleAgeUs`. Counters: `beginCallCount`, `stopCallCount`, `injectCallCount`. Use whenever a consumer driver takes `IPwmInput&`.
+
+### `ungula::hal::quadrature::IDecoder`
+
+Abstract A/B (and optional Z index) decoder. Exposes a signed count plus `reset(value)` for homing. `hasIndex()` defaults to `false`; backends that wire up the Z line override it and report `latchedAtIndex()`. Non-copyable.
+
+### `ungula::hal::quadrature::drivers::Decoder`
+
+Concrete `IDecoder`, platform-dispatched. ESP32 backend uses the PCNT peripheral configured for 4× quadrature decoding, with a virtual 32-bit accumulator added on top of PCNT's 16-bit hardware counter (so wraparound is invisible to callers). Host backend is a counter-only stub.
+
+### `ungula::hal::quadrature::drivers::DecoderFake`
+
+Header-only fake. Test knobs: `tick(delta)`, `setCount(value)`, `setHasIndex(bool)`, `markIndex(bool)`. Counters: `beginCallCount`, `stopCallCount`, `resetCallCount`. Use whenever a consumer driver takes `IDecoder&`.
 
 ---
 
@@ -474,6 +560,72 @@ bool writeRead(const uint8_t* txData, size_t writeLen, uint8_t* rxBuf, size_t re
 - **Side effects** — adds one device handle to the bus; destructor removes the device but leaves the bus initialised so other `SpiMaster` instances can keep using it.
 - **Usage notes** — for multiple devices on the same bus, share `host` and use distinct `csPin` per instance.
 
+### `ungula::hal::can::Can`
+
+```cpp
+explicit Can(uint8_t controllerNumber);
+~Can();
+bool begin(uint8_t txPin, uint8_t rxPin, uint32_t bitrateBps);
+bool stop();
+bool send(const CanFrame& frame, uint32_t timeoutMs = 50);
+int32_t receive(CanFrame& out, uint32_t timeoutMs = 0);
+bool setAcceptanceFilter(uint32_t id, uint32_t mask, bool extendedId);
+bool clearAcceptanceFilter();
+bool isBusOff() const;
+bool recoverFromBusOff();
+uint8_t controller() const;
+```
+
+- **`begin`** — install + start the controller at one of the `BITRATE_*` presets. Returns `false` if already installed or the bitrate is unsupported.
+- **`send`** — transmit one frame. Blocks up to `timeoutMs` waiting for room in the TX queue. Returns `false` on timeout / driver error.
+- **`receive`** — read one frame. Returns `1` on success, `0` on timeout (`timeoutMs > 0`), `-1` on driver error or before `begin()`.
+- **`setAcceptanceFilter`** / **`clearAcceptanceFilter`** — single hardware filter; the wrapper does a transparent stop+reinstall under the hood because TWAI only accepts the filter at install time.
+- **`isBusOff`** / **`recoverFromBusOff`** — bus-off detection (line stuck low, error counter overflow) and recovery. The bus may take some milliseconds to come back online after `recoverFromBusOff()`.
+- **Failure behavior** — `bool` returns are `false` on failure; `int32_t` returns are `-1`. Never throws.
+- **Side effects** — owns the TWAI driver for the controller. Destructor stops + uninstalls it. Non-copyable.
+
+### `ungula::hal::pwm_input::IPwmInput`
+
+```cpp
+virtual bool begin(uint8_t pin) = 0;
+virtual bool stop() = 0;
+virtual uint32_t lastHighTimeUs() const = 0;
+virtual uint32_t lastPeriodUs() const = 0;
+virtual bool hasSample() const = 0;
+virtual uint32_t sampleAgeUs() const = 0;
+virtual uint8_t pin() const = 0;
+```
+
+- **`begin`** — install the capture for `pin`. Idempotent — second call returns `false`.
+- **`stop`** — tear down the capture. Safe to call when not installed.
+- **`lastHighTimeUs`** / **`lastPeriodUs`** — most recent high-pulse width and full-period duration in µs. Both return `0` until a complete period has been observed.
+- **`hasSample`** — `true` once at least one full period has been captured.
+- **`sampleAgeUs`** — microseconds since the most recent edge. Useful for detecting a stalled signal even when `hasSample()` is `true`.
+- **Failure behavior** — `bool` returns are `false` on failure. The accessors do not signal errors; they return `0` when there is no sample yet. Pair them with `hasSample()` / `sampleAgeUs()` for liveness checks.
+- **Side effects** — concrete ESP32 driver installs the global GPIO ISR service on first `begin()` and registers a per-pin handler. The fake exposes `injectSample(highUs, periodUs)` plus call counters for tests.
+
+### `ungula::hal::quadrature::IDecoder`
+
+```cpp
+virtual bool begin(uint8_t pinA, uint8_t pinB, int32_t initialCount = 0) = 0;
+virtual bool stop() = 0;
+virtual int32_t count() const = 0;
+virtual bool reset(int32_t value = 0) = 0;
+virtual bool hasIndex() const;            // default: false
+virtual bool latchedAtIndex() const;      // default: false
+virtual uint8_t pinA() const = 0;
+virtual uint8_t pinB() const = 0;
+```
+
+- **`begin`** — install the decoder on `pinA` / `pinB` and seed the count with `initialCount`. Idempotent — second call returns `false`.
+- **`stop`** — tear down the decoder. Idempotent.
+- **`count`** — current signed count. The ESP32 backend combines the seed value with the live PCNT delta so callers see a 32-bit virtual count even though the hardware counter is 16-bit.
+- **`reset`** — force the count to `value`. Use it when homing to a known reference. Clears the underlying PCNT counter on hardware backends.
+- **`hasIndex`** / **`latchedAtIndex`** — Z-line support reported by the backend; safe defaults are `false`.
+- **`pinA`** / **`pinB`** — pins as supplied to `begin()`. `0xFF` until installed.
+- **Failure behavior** — `bool` returns are `false` on failure. `count()` always returns the last known value (no error signalling needed; an unhealthy bus never gets installed in the first place).
+- **Side effects** — concrete ESP32 driver allocates a PCNT unit + 2 channels per instance and frees them in `stop()`/destructor. The fake exposes `tick(delta)`, `setCount(value)`, `setHasIndex(bool)`, `markIndex(bool)`, plus call counters.
+
 ### `ungula::hal::uart::Uart`
 
 ```cpp
@@ -501,9 +653,9 @@ uint8_t port() const;
 
 ## Lifecycle
 
-1. **Boot (`setup()`):** call every `config*()` (GPIO), `configPwm()`, `AdcManager::configure()`, `I2cMaster::begin()`, `SpiMaster::begin()`, `Uart::begin()` you need. All of these may allocate driver state — heap allocation after `setup()` is forbidden by project rules, so do it here.
-2. **Operate (`loop()` / tasks):** call the unchecked read/write helpers, `readMv()`, `read()`/`write()`/`writeRead()`. These do not allocate.
-3. **Shutdown:** destructors of `AdcManager`, `Uart`, `I2cMaster`, `SpiMaster` release their drivers. `AdcManager::deinit()` is idempotent — call it explicitly only when reordering matters.
+1. **Boot (`setup()`):** call every `config*()` (GPIO), `configPwm()`, `AdcManager::configure()`, `I2cMaster::begin()`, `SpiMaster::begin()`, `Uart::begin()`, `Can::begin()`, `IMultiplexer::begin()`, `IPwmInput::begin()`, `IDecoder::begin()` you need. All of these may allocate driver state — heap allocation after `setup()` is forbidden by project rules, so do it here.
+2. **Operate (`loop()` / tasks):** call the unchecked read/write helpers, `readMv()`, `read()`/`write()`/`writeRead()`, `send()`/`receive()`, `lastHighTimeUs()`/`lastPeriodUs()`, `count()`. These do not allocate.
+3. **Shutdown:** destructors of `AdcManager`, `Uart`, `I2cMaster`, `SpiMaster`, `Can`, the concrete `PwmInput`, the concrete `Decoder` release their drivers. `AdcManager::deinit()` is idempotent — call it explicitly only when reordering matters. `IPwmInput::stop()` and `IDecoder::stop()` are idempotent for re-init flows.
 
 Calling unchecked GPIO functions on a pin you never configured is undefined behavior at the SoC level. Use the checked variants if there is any doubt.
 
@@ -528,6 +680,8 @@ Calling unchecked GPIO functions on a pin you never configured is undefined beha
 - **ADC2 + Wi-Fi:** classic ESP32 ADC2 channels conflict with the Wi-Fi PHY. Prefer ADC1 (GPIO 32–39) when the radio is active.
 - **PWM (LEDC):** a finite number of channels is shared across the firmware. `configPwm()` is single-assignment per pin and consumes one channel; do not call it in a loop.
 - **No heap after `setup()`:** all `begin()` / `configure()` / `configPwm()` calls must happen during initialization.
+- **PWM-input ISR scope:** the ESP32 `PwmInput` backend installs a per-pin GPIO ISR that runs in IRAM and only touches a small file-scope state slot indexed by the GPIO number. Multiple `PwmInput` instances on different pins coexist; two instances on the same pin do not (the second `begin()` returns `false`).
+- **PCNT pool:** the ESP32 `Decoder` backend allocates one PCNT unit per instance (4 units on ESP32 classic, 8 on S3). Treat that as a finite resource — don't construct decoders inside hot paths, and call `stop()` before destroying one if a unit needs to be reclaimed early.
 
 ---
 
@@ -565,5 +719,6 @@ These are notes for future work. Do not assume any of them exist.
 - Configure pins / ports / channels in `setup()`. The hot path (`loop()` / tasks / ISRs) must not allocate or reconfigure.
 - Prefer the unchecked GPIO functions inside ISRs and timing-critical loops; prefer the checked variants when the pin number is from configuration.
 - ISR handlers must be tagged `UNGULA_ISR_ATTR`.
-- One owner per `Uart` / `I2cMaster` / `SpiMaster`. Do not pass copies; pass references.
+- One owner per `Uart` / `I2cMaster` / `SpiMaster` / `Can` / `PwmInput` / `Decoder`. Do not pass copies; pass references.
+- For drivers that consume an interface (`IMultiplexer`, `IPwmInput`, `IDecoder`), the host owns the concrete instance and the driver borrows it by reference. Do not let the lifetime of the consumer driver exceed the lifetime of the underlying peripheral.
 - Do not log from this library or wrap it in code that does — the HAL is logging-free by project policy.

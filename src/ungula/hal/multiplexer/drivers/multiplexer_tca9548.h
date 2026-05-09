@@ -30,7 +30,7 @@ namespace ungula::hal::multiplexer::drivers {
             ///                    alive and call `bus.begin(...)` before
             ///                    using this multiplexer.
             MultiplexerTCA9548(uint8_t i2cAddress, ungula::hal::i2c::I2cMaster& bus)
-                    : IMultiplexer("TCA9548", i2cAddress), bus_(bus) {}
+                : IMultiplexer("TCA9548", i2cAddress), bus_(bus) {}
 
             bool begin() override;
             void restartBus() override;

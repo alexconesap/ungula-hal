@@ -13,7 +13,7 @@ namespace ungula::hal::multiplexer::drivers {
         // <1 µs but a tiny pause helps when the downstream device is
         // about to be addressed immediately after.
         constexpr int64_t SELECT_SETTLE_US = 25;
-    }
+    }  // namespace
 
     bool MultiplexerTCA9548::begin() {
         // The bus is owned by the host project. We only probe the chip
