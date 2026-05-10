@@ -9,7 +9,8 @@
 #include <ungula/hal/multiplexer/drivers/multiplexer_fake.h>
 #include <ungula/hal/multiplexer/i_multiplexer.h>
 
-namespace {
+namespace
+{
 
     using ungula::hal::multiplexer::IMultiplexer;
     using ungula::hal::multiplexer::SELECT_RETRY_COUNT;
@@ -17,7 +18,8 @@ namespace {
 
     // ---- Lifecycle ----
 
-    TEST(IMultiplexerTest, SelectChannelBeforeBeginIsRejected) {
+    TEST(IMultiplexerTest, SelectChannelBeforeBeginIsRejected)
+    {
         MultiplexerFake mux;
         // begin() never called → selectChannel must refuse and not call
         // the hardware hook.
@@ -25,13 +27,15 @@ namespace {
         EXPECT_EQ(mux.selectCallCount(), 0U);
     }
 
-    TEST(IMultiplexerTest, BeginRunsTheBeginPath) {
+    TEST(IMultiplexerTest, BeginRunsTheBeginPath)
+    {
         MultiplexerFake mux;
         EXPECT_TRUE(mux.begin());
         EXPECT_EQ(mux.beginCallCount(), 1U);
     }
 
-    TEST(IMultiplexerTest, BeginCanFailAndStateRemainsUninitialised) {
+    TEST(IMultiplexerTest, BeginCanFailAndStateRemainsUninitialised)
+    {
         MultiplexerFake mux;
         mux.setBeginResult(false);
         EXPECT_FALSE(mux.begin());
@@ -50,7 +54,8 @@ namespace {
 
     // ---- Channel cache ----
 
-    TEST(IMultiplexerTest, RepeatedSelectionsOfSameChannelOnlyHitWireOnce) {
+    TEST(IMultiplexerTest, RepeatedSelectionsOfSameChannelOnlyHitWireOnce)
+    {
         MultiplexerFake mux;
         mux.begin();
 
@@ -63,7 +68,8 @@ namespace {
         EXPECT_EQ(mux.selectCallCount(), 1U);
     }
 
-    TEST(IMultiplexerTest, SwitchingChannelsHitsWireEveryTime) {
+    TEST(IMultiplexerTest, SwitchingChannelsHitsWireEveryTime)
+    {
         MultiplexerFake mux;
         mux.begin();
 
@@ -76,7 +82,8 @@ namespace {
 
     // ---- Retry logic ----
 
-    TEST(IMultiplexerTest, SelectChannelRetriesOnFailureAndEventuallySucceeds) {
+    TEST(IMultiplexerTest, SelectChannelRetriesOnFailureAndEventuallySucceeds)
+    {
         MultiplexerFake mux;
         mux.begin();
 
@@ -90,7 +97,8 @@ namespace {
         EXPECT_EQ(mux.getCurrentChannel(), 4U);
     }
 
-    TEST(IMultiplexerTest, SelectChannelGivesUpAfterMaxRetries) {
+    TEST(IMultiplexerTest, SelectChannelGivesUpAfterMaxRetries)
+    {
         MultiplexerFake mux;
         mux.begin();
 
@@ -100,7 +108,8 @@ namespace {
         EXPECT_EQ(mux.selectFailureCount(), SELECT_RETRY_COUNT);
     }
 
-    TEST(IMultiplexerTest, AfterFailureCacheIsInvalidatedSoNextCallReHitsWire) {
+    TEST(IMultiplexerTest, AfterFailureCacheIsInvalidatedSoNextCallReHitsWire)
+    {
         MultiplexerFake mux;
         mux.begin();
 
@@ -127,12 +136,14 @@ namespace {
 
     // ---- Logging toggle ----
 
-    TEST(IMultiplexerTest, LoggingDefaultsOff) {
+    TEST(IMultiplexerTest, LoggingDefaultsOff)
+    {
         MultiplexerFake mux;
         EXPECT_FALSE(mux.isLoggingEnabled());
     }
 
-    TEST(IMultiplexerTest, EnableDisableLoggingFlipsFlag) {
+    TEST(IMultiplexerTest, EnableDisableLoggingFlipsFlag)
+    {
         MultiplexerFake mux;
         mux.enableLogging();
         EXPECT_TRUE(mux.isLoggingEnabled());
@@ -142,7 +153,8 @@ namespace {
 
     // ---- restartBus invalidates state ----
 
-    TEST(IMultiplexerTest, RestartBusForcesNextSelectionToHitWire) {
+    TEST(IMultiplexerTest, RestartBusForcesNextSelectionToHitWire)
+    {
         MultiplexerFake mux;
         mux.begin();
         EXPECT_TRUE(mux.selectChannel(2));
@@ -163,12 +175,13 @@ namespace {
     // compile-only test fires. Every concrete driver must therefore
     // remain a valid IMultiplexer.
 
-    TEST(IMultiplexerTest, FakeIsAValidIMultiplexer) {
+    TEST(IMultiplexerTest, FakeIsAValidIMultiplexer)
+    {
         // Compile-time check: every IMultiplexer pure virtual must be
         // implemented by the fake — otherwise this static_cast won't
         // resolve.
         MultiplexerFake mux;
-        IMultiplexer* asInterface = static_cast<IMultiplexer*>(&mux);
+        IMultiplexer *asInterface = static_cast<IMultiplexer *>(&mux);
         EXPECT_NE(asInterface, nullptr);
         EXPECT_TRUE(asInterface->begin());
         EXPECT_TRUE(asInterface->isResponding());
@@ -176,4 +189,4 @@ namespace {
         asInterface->restartBus();
     }
 
-}  // namespace
+} // namespace

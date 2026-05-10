@@ -8,9 +8,11 @@
 
 #include "gpio_access_esp32.h"
 
-namespace ungula::hal::gpio {
+namespace ungula::hal::gpio
+{
 
-    namespace detail {
+    namespace detail
+    {
 
         static constexpr uint8_t MAX_PWM_CHANNELS = SOC_LEDC_CHANNEL_NUM;
         static constexpr uint8_t MAX_PWM_TIMERS = LEDC_TIMER_MAX;
@@ -18,29 +20,30 @@ namespace ungula::hal::gpio {
         static constexpr uint8_t SLOT_UNUSED = 0xFF;
 
         struct PwmChannelInfo {
-                uint8_t pin;
-                uint8_t timer;
-                uint8_t resolutionBits;
-                bool configured;
+            uint8_t pin;
+            uint8_t timer;
+            uint8_t resolutionBits;
+            bool configured;
         };
 
         struct PwmTimerInfo {
-                uint32_t freqHz;
-                uint8_t resBits;
-                bool configured;
+            uint32_t freqHz;
+            uint8_t resBits;
+            bool configured;
         };
 
         struct PwmState {
-                PwmChannelInfo channels[MAX_PWM_CHANNELS];
-                PwmTimerInfo timers[MAX_PWM_TIMERS];
-                uint8_t channelCount;
-                uint8_t timerCount;
+            PwmChannelInfo channels[MAX_PWM_CHANNELS];
+            PwmTimerInfo timers[MAX_PWM_TIMERS];
+            uint8_t channelCount;
+            uint8_t timerCount;
         };
 
         // Single global instance — not per-TU.
         static PwmState s_pwmState = {};
 
-        static uint8_t findChannel(uint8_t pin) {
+        static uint8_t findChannel(uint8_t pin)
+        {
             for (uint8_t idx = 0; idx < s_pwmState.channelCount; idx++) {
                 if (s_pwmState.channels[idx].configured && s_pwmState.channels[idx].pin == pin) {
                     return idx;
@@ -50,7 +53,8 @@ namespace ungula::hal::gpio {
         }
 
         // Find an existing timer with matching freq+res, or configure a new one.
-        static uint8_t findOrCreateTimer(uint32_t freqHz, uint8_t resBits) {
+        static uint8_t findOrCreateTimer(uint32_t freqHz, uint8_t resBits)
+        {
             for (uint8_t idx = 0; idx < s_pwmState.timerCount; idx++) {
                 if (s_pwmState.timers[idx].configured && s_pwmState.timers[idx].freqHz == freqHz &&
                     s_pwmState.timers[idx].resBits == resBits) {
@@ -82,9 +86,10 @@ namespace ungula::hal::gpio {
             return slot;
         }
 
-    }  // namespace detail
+    } // namespace detail
 
-    bool configPwm(uint8_t pin, uint32_t freqHz, uint8_t resolutionBits) {
+    bool configPwm(uint8_t pin, uint32_t freqHz, uint8_t resolutionBits)
+    {
         if (!detail::isValidOutputGpio(pin)) {
             return false;
         }
@@ -128,7 +133,8 @@ namespace ungula::hal::gpio {
         return true;
     }
 
-    bool writePwm(uint8_t pin, uint32_t duty) {
+    bool writePwm(uint8_t pin, uint32_t duty)
+    {
         uint8_t ch = detail::findChannel(pin);
         if (ch == detail::SLOT_UNUSED) {
             return false;
@@ -148,6 +154,6 @@ namespace ungula::hal::gpio {
         return ledc_update_duty(LEDC_LOW_SPEED_MODE, ledcCh) == ESP_OK;
     }
 
-}  // namespace ungula::hal::gpio
+} // namespace ungula::hal::gpio
 
-#endif  // ESP_PLATFORM
+#endif // ESP_PLATFORM

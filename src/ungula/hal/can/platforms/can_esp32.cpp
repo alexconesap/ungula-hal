@@ -8,41 +8,44 @@
 
 #include "driver/twai.h"
 
-namespace ungula::hal::can {
+namespace ungula::hal::can
+{
 
-    namespace {
+    namespace
+    {
 
         // Map a numeric bitrate to the matching TWAI timing preset.
         // Anything outside the table makes begin() reject — caller must
         // pick a supported value.
-        bool resolveTiming(uint32_t bitrateBps, twai_timing_config_t& out) {
+        bool resolveTiming(uint32_t bitrateBps, twai_timing_config_t &out)
+        {
             switch (bitrateBps) {
-                case BITRATE_25K:
-                    out = TWAI_TIMING_CONFIG_25KBITS();
-                    return true;
-                case BITRATE_50K:
-                    out = TWAI_TIMING_CONFIG_50KBITS();
-                    return true;
-                case BITRATE_100K:
-                    out = TWAI_TIMING_CONFIG_100KBITS();
-                    return true;
-                case BITRATE_125K:
-                    out = TWAI_TIMING_CONFIG_125KBITS();
-                    return true;
-                case BITRATE_250K:
-                    out = TWAI_TIMING_CONFIG_250KBITS();
-                    return true;
-                case BITRATE_500K:
-                    out = TWAI_TIMING_CONFIG_500KBITS();
-                    return true;
-                case BITRATE_800K:
-                    out = TWAI_TIMING_CONFIG_800KBITS();
-                    return true;
-                case BITRATE_1M:
-                    out = TWAI_TIMING_CONFIG_1MBITS();
-                    return true;
-                default:
-                    return false;
+            case BITRATE_25K:
+                out = TWAI_TIMING_CONFIG_25KBITS();
+                return true;
+            case BITRATE_50K:
+                out = TWAI_TIMING_CONFIG_50KBITS();
+                return true;
+            case BITRATE_100K:
+                out = TWAI_TIMING_CONFIG_100KBITS();
+                return true;
+            case BITRATE_125K:
+                out = TWAI_TIMING_CONFIG_125KBITS();
+                return true;
+            case BITRATE_250K:
+                out = TWAI_TIMING_CONFIG_250KBITS();
+                return true;
+            case BITRATE_500K:
+                out = TWAI_TIMING_CONFIG_500KBITS();
+                return true;
+            case BITRATE_800K:
+                out = TWAI_TIMING_CONFIG_800KBITS();
+                return true;
+            case BITRATE_1M:
+                out = TWAI_TIMING_CONFIG_1MBITS();
+                return true;
+            default:
+                return false;
             }
         }
 
@@ -51,7 +54,8 @@ namespace ungula::hal::can {
         // mode left-justifies the ID into the 32-bit register: standard
         // IDs occupy bits 31..21, extended IDs occupy bits 31..3. The
         // mask follows the same alignment, with 1 = "don't care".
-        twai_filter_config_t makeFilter(uint32_t id, uint32_t mask, bool extendedId) {
+        twai_filter_config_t makeFilter(uint32_t id, uint32_t mask, bool extendedId)
+        {
             twai_filter_config_t f{};
             if (extendedId) {
                 f.acceptance_code = (id & 0x1FFFFFFFU) << 3;
@@ -64,11 +68,13 @@ namespace ungula::hal::can {
             return f;
         }
 
-        twai_filter_config_t acceptAllFilter() {
+        twai_filter_config_t acceptAllFilter()
+        {
             return TWAI_FILTER_CONFIG_ACCEPT_ALL();
         }
 
-        void frameToMessage(const CanFrame& src, twai_message_t& dst) {
+        void frameToMessage(const CanFrame &src, twai_message_t &dst)
+        {
             dst = {};
             dst.identifier = src.id;
             dst.extd = src.extendedId ? 1U : 0U;
@@ -79,7 +85,8 @@ namespace ungula::hal::can {
             }
         }
 
-        void messageToFrame(const twai_message_t& src, CanFrame& dst) {
+        void messageToFrame(const twai_message_t &src, CanFrame &dst)
+        {
             dst = {};
             dst.id = src.identifier;
             dst.extendedId = src.extd != 0U;
@@ -92,11 +99,10 @@ namespace ungula::hal::can {
 
         // Install + start the driver with the supplied parameters.
         // Caller (the public methods of `Can`) owns the in-memory state.
-        bool installAndStart(uint8_t txPin, uint8_t rxPin, uint32_t bitrateBps,
-                             const twai_filter_config_t& filter) {
-            twai_general_config_t general =
-                    TWAI_GENERAL_CONFIG_DEFAULT(static_cast<gpio_num_t>(txPin),
-                                                static_cast<gpio_num_t>(rxPin), TWAI_MODE_NORMAL);
+        bool installAndStart(uint8_t txPin, uint8_t rxPin, uint32_t bitrateBps, const twai_filter_config_t &filter)
+        {
+            twai_general_config_t general = TWAI_GENERAL_CONFIG_DEFAULT(
+                static_cast<gpio_num_t>(txPin), static_cast<gpio_num_t>(rxPin), TWAI_MODE_NORMAL);
             twai_timing_config_t timing{};
             if (!resolveTiming(bitrateBps, timing)) {
                 return false;
@@ -111,18 +117,23 @@ namespace ungula::hal::can {
             return true;
         }
 
-    }  // namespace
+    } // namespace
 
-    Can::Can(uint8_t controllerNumber) : port_(controllerNumber) {}
+    Can::Can(uint8_t controllerNumber)
+            : port_(controllerNumber)
+    {
+    }
 
-    Can::~Can() {
+    Can::~Can()
+    {
         if (installed_) {
             twai_stop();
             twai_driver_uninstall();
         }
     }
 
-    bool Can::begin(uint8_t txPin, uint8_t rxPin, uint32_t bitrateBps) {
+    bool Can::begin(uint8_t txPin, uint8_t rxPin, uint32_t bitrateBps)
+    {
         if (installed_) {
             return false;
         }
@@ -138,7 +149,8 @@ namespace ungula::hal::can {
         return true;
     }
 
-    bool Can::stop() {
+    bool Can::stop()
+    {
         if (!installed_) {
             return true;
         }
@@ -148,7 +160,8 @@ namespace ungula::hal::can {
         return true;
     }
 
-    bool Can::send(const CanFrame& frame, uint32_t timeoutMs) {
+    bool Can::send(const CanFrame &frame, uint32_t timeoutMs)
+    {
         if (!installed_) {
             return false;
         }
@@ -157,7 +170,8 @@ namespace ungula::hal::can {
         return twai_transmit(&msg, pdMS_TO_TICKS(timeoutMs)) == ESP_OK;
     }
 
-    int32_t Can::receive(CanFrame& out, uint32_t timeoutMs) {
+    int32_t Can::receive(CanFrame &out, uint32_t timeoutMs)
+    {
         if (!installed_) {
             return -1;
         }
@@ -173,7 +187,8 @@ namespace ungula::hal::can {
         return -1;
     }
 
-    bool Can::setAcceptanceFilter(uint32_t id, uint32_t mask, bool extendedId) {
+    bool Can::setAcceptanceFilter(uint32_t id, uint32_t mask, bool extendedId)
+    {
         if (!installed_) {
             return false;
         }
@@ -195,7 +210,8 @@ namespace ungula::hal::can {
         return true;
     }
 
-    bool Can::clearAcceptanceFilter() {
+    bool Can::clearAcceptanceFilter()
+    {
         if (!installed_) {
             return false;
         }
@@ -211,7 +227,8 @@ namespace ungula::hal::can {
         return true;
     }
 
-    bool Can::isBusOff() const {
+    bool Can::isBusOff() const
+    {
         if (!installed_) {
             return false;
         }
@@ -222,13 +239,14 @@ namespace ungula::hal::can {
         return status.state == TWAI_STATE_BUS_OFF;
     }
 
-    bool Can::recoverFromBusOff() {
+    bool Can::recoverFromBusOff()
+    {
         if (!installed_) {
             return false;
         }
         return twai_initiate_recovery() == ESP_OK;
     }
 
-}  // namespace ungula::hal::can
+} // namespace ungula::hal::can
 
-#endif  // ESP_PLATFORM
+#endif // ESP_PLATFORM

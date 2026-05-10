@@ -6,13 +6,20 @@
 
 #include "../i2c_master.h"
 
-namespace ungula::hal::i2c {
+namespace ungula::hal::i2c
+{
 
-    I2cMaster::I2cMaster(uint8_t portNumber) : port_(portNumber) {}
+    I2cMaster::I2cMaster(uint8_t portNumber)
+            : port_(portNumber)
+    {
+    }
 
-    I2cMaster::~I2cMaster() {}
+    I2cMaster::~I2cMaster()
+    {
+    }
 
-    bool I2cMaster::begin(uint8_t /*sdaPin*/, uint8_t /*sclPin*/, uint32_t /*freqHz*/) {
+    bool I2cMaster::begin(uint8_t /*sdaPin*/, uint8_t /*sclPin*/, uint32_t /*freqHz*/)
+    {
         if (installed_) {
             return false;
         }
@@ -20,21 +27,22 @@ namespace ungula::hal::i2c {
         return true;
     }
 
-    bool I2cMaster::write(uint8_t /*addr*/, const uint8_t* /*data*/, size_t /*length*/,
-                          uint32_t /*timeoutMs*/) {
+    bool I2cMaster::write(uint8_t /*addr*/, const uint8_t * /*data*/, size_t /*length*/, uint32_t /*timeoutMs*/)
+    {
         return installed_;
     }
 
-    bool I2cMaster::read(uint8_t /*addr*/, uint8_t* /*buffer*/, size_t /*length*/,
-                         uint32_t /*timeoutMs*/) {
+    bool I2cMaster::read(uint8_t /*addr*/, uint8_t * /*buffer*/, size_t /*length*/, uint32_t /*timeoutMs*/)
+    {
         return installed_;
     }
 
-    bool I2cMaster::writeRead(uint8_t /*addr*/, const uint8_t* /*writeData*/, size_t /*writeLen*/,
-                              uint8_t* /*readBuf*/, size_t /*readLen*/, uint32_t /*timeoutMs*/) {
+    bool I2cMaster::writeRead(uint8_t /*addr*/, const uint8_t * /*writeData*/, size_t /*writeLen*/,
+                              uint8_t * /*readBuf*/, size_t /*readLen*/, uint32_t /*timeoutMs*/)
+    {
         return installed_;
     }
 
-}  // namespace ungula::hal::i2c
+} // namespace ungula::hal::i2c
 
-#endif  // !ESP_PLATFORM
+#endif // !ESP_PLATFORM

@@ -20,46 +20,49 @@
 /// free to configure 1× / 2× internally if the wiring or noise floor
 /// requires it; the count returned is whatever the backend produces.
 
-namespace ungula::hal::quadrature {
+namespace ungula::hal::quadrature
+{
 
     class IDecoder {
-        public:
-            virtual ~IDecoder() = default;
+    public:
+        virtual ~IDecoder() = default;
 
-            IDecoder(const IDecoder&) = delete;
-            IDecoder& operator=(const IDecoder&) = delete;
+        IDecoder(const IDecoder &) = delete;
+        IDecoder &operator=(const IDecoder &) = delete;
 
-            /// @brief Install the decoder on `pinA` / `pinB` and seed
-            ///        the count.
-            virtual bool begin(uint8_t pinA, uint8_t pinB, int32_t initialCount = 0) = 0;
+        /// @brief Install the decoder on `pinA` / `pinB` and seed
+        ///        the count.
+        virtual bool begin(uint8_t pinA, uint8_t pinB, int32_t initialCount = 0) = 0;
 
-            /// @brief Tear down the decoder. Idempotent.
-            virtual bool stop() = 0;
+        /// @brief Tear down the decoder. Idempotent.
+        virtual bool stop() = 0;
 
-            /// @brief Current signed count.
-            virtual int32_t count() const = 0;
+        /// @brief Current signed count.
+        virtual int32_t count() const = 0;
 
-            /// @brief Force the count to `value`. Useful for homing.
-            virtual bool reset(int32_t value = 0) = 0;
+        /// @brief Force the count to `value`. Useful for homing.
+        virtual bool reset(int32_t value = 0) = 0;
 
-            /// @brief True when the decoder also tracks a Z (index) line.
-            virtual bool hasIndex() const {
-                return false;
-            }
+        /// @brief True when the decoder also tracks a Z (index) line.
+        virtual bool hasIndex() const
+        {
+            return false;
+        }
 
-            /// @brief True when the latest count was captured at the Z
-            ///        pulse — meaningful only when `hasIndex()` is true.
-            virtual bool latchedAtIndex() const {
-                return false;
-            }
+        /// @brief True when the latest count was captured at the Z
+        ///        pulse — meaningful only when `hasIndex()` is true.
+        virtual bool latchedAtIndex() const
+        {
+            return false;
+        }
 
-            /// @brief Pin A / pin B as supplied to `begin()`. 0xFF means
-            ///        not yet installed.
-            virtual uint8_t pinA() const = 0;
-            virtual uint8_t pinB() const = 0;
+        /// @brief Pin A / pin B as supplied to `begin()`. 0xFF means
+        ///        not yet installed.
+        virtual uint8_t pinA() const = 0;
+        virtual uint8_t pinB() const = 0;
 
-        protected:
-            IDecoder() = default;
+    protected:
+        IDecoder() = default;
     };
 
-}  // namespace ungula::hal::quadrature
+} // namespace ungula::hal::quadrature

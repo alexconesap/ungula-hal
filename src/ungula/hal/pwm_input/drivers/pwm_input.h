@@ -14,29 +14,33 @@
 /// `begin()` succeeds, `hasSample()` stays false. Tests of consumer
 /// code should use `PwmInputFake` to script samples.
 
-namespace ungula::hal::pwm_input::drivers {
+namespace ungula::hal::pwm_input::drivers
+{
 
     class PwmInput final : public IPwmInput {
-        public:
-            PwmInput();
-            ~PwmInput() override;
+    public:
+        PwmInput();
+        ~PwmInput() override;
 
-            bool begin(uint8_t pin) override;
-            bool stop() override;
+        bool begin(uint8_t pin) override;
+        bool stop() override;
 
-            uint32_t lastHighTimeUs() const override;
-            uint32_t lastPeriodUs() const override;
-            bool hasSample() const override;
-            uint32_t sampleAgeUs() const override;
-            uint8_t pin() const override {
-                return pin_;
-            }
+        uint32_t lastHighTimeUs() const override;
+        uint32_t lastPeriodUs() const override;
+        bool hasSample() const override;
+        uint32_t sampleAgeUs() const override;
+        uint8_t pin() const override
+        {
+            return pin_;
+        }
 
-        private:
-            bool installed_ = false;
-            uint8_t pin_ = 0;
-            // Opaque per-platform state. Lives at file scope inside each
-            // platform .cpp; the public class just tracks lifecycle.
+        void setSampleCallback(SampleCallback cb, void *ctx) override;
+
+    private:
+        bool installed_ = false;
+        uint8_t pin_ = 0;
+        // Opaque per-platform state. Lives at file scope inside each
+        // platform .cpp; the public class just tracks lifecycle.
     };
 
-}  // namespace ungula::hal::pwm_input::drivers
+} // namespace ungula::hal::pwm_input::drivers

@@ -4,4 +4,6 @@
 
 #include "ungula/hal/quadrature/i_decoder.h"
 
-namespace ungula::hal::quadrature {}  // namespace ungula::hal::quadrature
+namespace ungula::hal::quadrature
+{
+} // namespace ungula::hal::quadrature

@@ -413,6 +413,34 @@ void loop() {
 
 In production this is exactly what `ungula::encoder::drivers::As5600Pwm` does internally — the encoder driver borrows an `IPwmInput&` and translates the high/period numbers into degrees.
 
+### Real-world use case — per-frame ISR callback (no polling)
+
+For low-latency consumers, `setSampleCallback()` registers a function the backend invokes from interrupt context every time a complete period is captured. After it lands, the host can stop polling — the callback runs on every frame.
+
+```cpp
+#include <ungula/hal/gpio/gpio_access.h>      // for UNGULA_ISR_ATTR
+#include <ungula/hal/pwm_input/drivers/pwm_input.h>
+
+namespace pwm = ungula::hal::pwm_input;
+
+pwm::drivers::PwmInput cap;
+volatile uint32_t g_lastHighUs = 0;
+volatile uint32_t g_lastPeriodUs = 0;
+
+UNGULA_ISR_ATTR void onPwmFrame(void* /*ctx*/) {
+    g_lastHighUs   = cap.lastHighTimeUs();
+    g_lastPeriodUs = cap.lastPeriodUs();
+    // No floats, no logging, no I2C/SPI here — keep it short.
+}
+
+void setup() {
+    cap.begin(/*pin=*/34);
+    cap.setSampleCallback(&onPwmFrame, /*ctx=*/nullptr);
+}
+```
+
+The callback fires on the rising edge once a full period has been observed, so it sees a consistent `(highUs, periodUs)` pair. Pass `nullptr` to disarm. There is one slot per `PwmInput` instance — registering a new callback replaces any previous one.
+
 ### PWM input API
 
 | Method | Description |
@@ -424,6 +452,7 @@ In production this is exactly what `ungula::encoder::drivers::As5600Pwm` does in
 | `hasSample()` | `true` once at least one full period has been captured. |
 | `sampleAgeUs()` | Microseconds since the last edge. Pair with a threshold to detect a stalled signal. |
 | `pin()` | Pin the capture is bound to (valid only after `begin()`). |
+| `setSampleCallback(cb, ctx)` | Install a per-period ISR-context callback. `cb=nullptr` disarms. One slot per instance. |
 
 Drivers shipped:
 

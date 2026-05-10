@@ -8,35 +8,38 @@
 
 #include "driver/pulse_cnt.h"
 
-namespace ungula::hal::quadrature::drivers {
+namespace ungula::hal::quadrature::drivers
+{
 
-    namespace {
+    namespace
+    {
 
         struct EspState {
-                pcnt_unit_handle_t unit = nullptr;
-                pcnt_channel_handle_t chA = nullptr;
-                pcnt_channel_handle_t chB = nullptr;
+            pcnt_unit_handle_t unit = nullptr;
+            pcnt_channel_handle_t chA = nullptr;
+            pcnt_channel_handle_t chB = nullptr;
         };
 
-    }  // namespace
+    } // namespace
 
     Decoder::Decoder() = default;
 
-    Decoder::~Decoder() {
+    Decoder::~Decoder()
+    {
         if (installed_) {
             (void)stop();
         }
     }
 
-    bool Decoder::begin(uint8_t pinA, uint8_t pinB, int32_t initialCount) {
+    bool Decoder::begin(uint8_t pinA, uint8_t pinB, int32_t initialCount)
+    {
         if (installed_) {
             return false;
         }
-        EspState* st = new EspState();
+        EspState *st = new EspState();
         pcnt_unit_config_t unitCfg{};
-        unitCfg.high_limit = 32'767;
-        unitCfg.low_limit = -32'768;
-        unitCfg.flags.accum_count = 1;  // virtual 32-bit accumulator
+        unitCfg.high_limit = 32 '767; unitCfg.low_limit = -32' 768;
+        unitCfg.flags.accum_count = 1; // virtual 32-bit accumulator
         if (pcnt_new_unit(&unitCfg, &st->unit) != ESP_OK) {
             delete st;
             return false;
@@ -62,14 +65,10 @@ namespace ungula::hal::quadrature::drivers {
 
         // Quadrature: count A on both edges (decode = increase if B is
         // low, decrease if B is high), and B mirrored. Standard 4× decode.
-        pcnt_channel_set_edge_action(st->chA, PCNT_CHANNEL_EDGE_ACTION_DECREASE,
-                                     PCNT_CHANNEL_EDGE_ACTION_INCREASE);
-        pcnt_channel_set_level_action(st->chA, PCNT_CHANNEL_LEVEL_ACTION_KEEP,
-                                      PCNT_CHANNEL_LEVEL_ACTION_INVERSE);
-        pcnt_channel_set_edge_action(st->chB, PCNT_CHANNEL_EDGE_ACTION_INCREASE,
-                                     PCNT_CHANNEL_EDGE_ACTION_DECREASE);
-        pcnt_channel_set_level_action(st->chB, PCNT_CHANNEL_LEVEL_ACTION_KEEP,
-                                      PCNT_CHANNEL_LEVEL_ACTION_INVERSE);
+        pcnt_channel_set_edge_action(st->chA, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE);
+        pcnt_channel_set_level_action(st->chA, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE);
+        pcnt_channel_set_edge_action(st->chB, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE);
+        pcnt_channel_set_level_action(st->chB, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE);
 
         pcnt_unit_enable(st->unit);
         pcnt_unit_clear_count(st->unit);
@@ -83,11 +82,12 @@ namespace ungula::hal::quadrature::drivers {
         return true;
     }
 
-    bool Decoder::stop() {
+    bool Decoder::stop()
+    {
         if (!installed_) {
             return true;
         }
-        EspState* st = static_cast<EspState*>(unit_);
+        EspState *st = static_cast<EspState *>(unit_);
         if (st != nullptr) {
             pcnt_unit_stop(st->unit);
             pcnt_unit_disable(st->unit);
@@ -101,11 +101,12 @@ namespace ungula::hal::quadrature::drivers {
         return true;
     }
 
-    int32_t Decoder::count() const {
+    int32_t Decoder::count() const
+    {
         if (!installed_ || unit_ == nullptr) {
             return count_;
         }
-        EspState* st = static_cast<EspState*>(unit_);
+        EspState *st = static_cast<EspState *>(unit_);
         int hwCount = 0;
         pcnt_unit_get_count(st->unit, &hwCount);
         // Combine the seed value the host gave at begin/reset time
@@ -114,15 +115,16 @@ namespace ungula::hal::quadrature::drivers {
         return count_ + hwCount;
     }
 
-    bool Decoder::reset(int32_t value) {
+    bool Decoder::reset(int32_t value)
+    {
         count_ = value;
         if (installed_ && unit_ != nullptr) {
-            EspState* st = static_cast<EspState*>(unit_);
+            EspState *st = static_cast<EspState *>(unit_);
             pcnt_unit_clear_count(st->unit);
         }
         return true;
     }
 
-}  // namespace ungula::hal::quadrature::drivers
+} // namespace ungula::hal::quadrature::drivers
 
-#endif  // ESP_PLATFORM
+#endif // ESP_PLATFORM

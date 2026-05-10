@@ -6,16 +6,19 @@
 
 #include "ungula/core/time/time_control.h"
 
-namespace ungula::hal::multiplexer::drivers {
+namespace ungula::hal::multiplexer::drivers
+{
 
-    namespace {
+    namespace
+    {
         // Channel-select propagation time on the chip. Datasheet quotes
         // <1 µs but a tiny pause helps when the downstream device is
         // about to be addressed immediately after.
         constexpr int64_t SELECT_SETTLE_US = 25;
-    }  // namespace
+    } // namespace
 
-    bool MultiplexerTCA9548::begin() {
+    bool MultiplexerTCA9548::begin()
+    {
         // The bus is owned by the host project. We only probe the chip
         // here and flag ourselves ready.
         if (isResponding()) {
@@ -28,7 +31,8 @@ namespace ungula::hal::multiplexer::drivers {
         return false;
     }
 
-    void MultiplexerTCA9548::restartBus() {
+    void MultiplexerTCA9548::restartBus()
+    {
         // The shared I2cMaster is owned by the host project; the host
         // decides whether to tear it down. Nothing to do here beyond
         // forgetting our cached state so the next selectChannel() will
@@ -37,7 +41,8 @@ namespace ungula::hal::multiplexer::drivers {
         currentChannel_ = 0xFF;
     }
 
-    bool MultiplexerTCA9548::isResponding() {
+    bool MultiplexerTCA9548::isResponding()
+    {
         // Zero-length write probes the device without changing channel
         // state — most bus implementations treat it as an address+ACK
         // round-trip.
@@ -49,7 +54,8 @@ namespace ungula::hal::multiplexer::drivers {
         return ok;
     }
 
-    bool MultiplexerTCA9548::selectChannel_(uint8_t channel) {
+    bool MultiplexerTCA9548::selectChannel_(uint8_t channel)
+    {
         if (channel >= 8U) {
             // TCA9548 has 8 channels (0..7). Out-of-range request.
             return false;
@@ -62,4 +68,4 @@ namespace ungula::hal::multiplexer::drivers {
         return true;
     }
 
-}  // namespace ungula::hal::multiplexer::drivers
+} // namespace ungula::hal::multiplexer::drivers

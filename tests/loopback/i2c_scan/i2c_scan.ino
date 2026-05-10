@@ -11,7 +11,8 @@ static constexpr uint8_t SCL_PIN = 22;
 
 ungula::i2c::I2cMaster bus(0);
 
-void setup() {
+void setup()
+{
     Serial.begin(115200);
     delay(1000);
     Serial.println("=== I2C Bus Scan ===");
@@ -41,4 +42,6 @@ void setup() {
     Serial.println("=== Done ===");
 }
 
-void loop() {}
+void loop()
+{
+}

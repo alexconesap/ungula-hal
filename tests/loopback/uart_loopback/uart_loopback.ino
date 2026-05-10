@@ -10,7 +10,8 @@ static constexpr uint32_t BAUD = 115200;
 
 ungula::uart::Uart uart2(2);
 
-void setup() {
+void setup()
+{
     Serial.begin(115200);
     delay(1000);
     Serial.println("=== UART Loopback Test ===");
@@ -24,7 +25,7 @@ void setup() {
     Serial.println("PASS: uart2.begin()");
 
     // Send test pattern.
-    const uint8_t pattern[] = {0xDE, 0xAD, 0xBE, 0xEF, 0x42};
+    const uint8_t pattern[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0x42 };
     int32_t written = uart2.write(pattern, sizeof(pattern));
     Serial.printf("Sent %d bytes\n", written);
 
@@ -55,4 +56,6 @@ void setup() {
     Serial.println("=== Done ===");
 }
 
-void loop() {}
+void loop()
+{
+}

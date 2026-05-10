@@ -9,18 +9,21 @@
 #include "esp_adc/adc_cali_scheme.h"
 #include "soc/soc_caps.h"
 
-namespace ungula::hal::adc {
+namespace ungula::hal::adc
+{
 
-    AdcManager::~AdcManager() {
+    AdcManager::~AdcManager()
+    {
         deinit();
     }
 
-    void AdcManager::deinit() noexcept {
+    void AdcManager::deinit() noexcept
+    {
         // Delete calibration first — it references the unit, so must go before.
         // Pick the delete function that matches the scheme we created with.
         for (size_t u = 0; u < UNIT_COUNT; u++) {
             for (size_t a = 0; a < ATTEN_COUNT; a++) {
-                CaliEntry& entry = cali_[u][a];
+                CaliEntry &entry = cali_[u][a];
                 if (entry.handle == nullptr) {
                     continue;
                 }
@@ -52,7 +55,8 @@ namespace ungula::hal::adc {
         channelCount_ = 0;
     }
 
-    bool AdcManager::configure(uint8_t pin, Attenuation atten) {
+    bool AdcManager::configure(uint8_t pin, Attenuation atten)
+    {
         adc_unit_t unit;
         adc_channel_t channel;
         if (adc_oneshot_io_to_channel(static_cast<int>(pin), &unit, &channel) != ESP_OK) {
@@ -86,7 +90,7 @@ namespace ungula::hal::adc {
         // Calibration failure is non-fatal — the read path has a fallback.
         ensureCalibration(unit, idfAtten);
 
-        ChannelInfo& info = channels_[channelCount_];
+        ChannelInfo &info = channels_[channelCount_];
         info.pin = pin;
         info.unit = unit;
         info.channel = channel;
@@ -96,13 +100,14 @@ namespace ungula::hal::adc {
         return true;
     }
 
-    bool AdcManager::readRaw(uint8_t pin, int& raw) const {
+    bool AdcManager::readRaw(uint8_t pin, int &raw) const
+    {
         raw = 0;
         const size_t idx = findChannel(pin);
         if (idx == MAX_CHANNELS) {
             return false;
         }
-        const ChannelInfo& info = channels_[idx];
+        const ChannelInfo &info = channels_[idx];
         size_t unitIdx = 0;
         if (!unitToIndex(info.unit, unitIdx)) {
             return false;
@@ -118,20 +123,21 @@ namespace ungula::hal::adc {
         return true;
     }
 
-    bool AdcManager::readMv(uint8_t pin, uint32_t& mv) const {
+    bool AdcManager::readMv(uint8_t pin, uint32_t &mv) const
+    {
         mv = 0;
         int raw = 0;
         if (!readRaw(pin, raw)) {
             return false;
         }
 
-        const size_t idx = findChannel(pin);  // re-used — cheap linear probe.
-        const ChannelInfo& info = channels_[idx];
+        const size_t idx = findChannel(pin); // re-used — cheap linear probe.
+        const ChannelInfo &info = channels_[idx];
 
         size_t unitIdx = 0;
         unitToIndex(info.unit, unitIdx);
         const size_t attenIdx = attenToIndex(info.atten);
-        const CaliEntry& entry = cali_[unitIdx][attenIdx];
+        const CaliEntry &entry = cali_[unitIdx][attenIdx];
 
         if (entry.handle != nullptr) {
             int calibratedMv = 0;
@@ -148,7 +154,8 @@ namespace ungula::hal::adc {
 
     // ---- Internals ----
 
-    bool AdcManager::ensureUnit(adc_unit_t unit) {
+    bool AdcManager::ensureUnit(adc_unit_t unit)
+    {
         size_t idx = 0;
         if (!unitToIndex(unit, idx)) {
             return false;
@@ -164,13 +171,14 @@ namespace ungula::hal::adc {
 
     // Best-effort. Calibration failure leaves entry.handle == nullptr and
     // the read path uses the fallback approximation.
-    void AdcManager::ensureCalibration(adc_unit_t unit, adc_atten_t atten) {
+    void AdcManager::ensureCalibration(adc_unit_t unit, adc_atten_t atten)
+    {
         size_t unitIdx = 0;
         if (!unitToIndex(unit, unitIdx)) {
             return;
         }
         const size_t attenIdx = attenToIndex(atten);
-        CaliEntry& entry = cali_[unitIdx][attenIdx];
+        CaliEntry &entry = cali_[unitIdx][attenIdx];
         if (entry.handle != nullptr) {
             return;
         }
@@ -203,7 +211,8 @@ namespace ungula::hal::adc {
         entry.scheme = CaliScheme::None;
     }
 
-    size_t AdcManager::findChannel(uint8_t pin) const {
+    size_t AdcManager::findChannel(uint8_t pin) const
+    {
         for (size_t i = 0; i < channelCount_; i++) {
             if (channels_[i].configured && channels_[i].pin == pin) {
                 return i;
@@ -212,74 +221,79 @@ namespace ungula::hal::adc {
         return MAX_CHANNELS;
     }
 
-    bool AdcManager::unitToIndex(adc_unit_t unit, size_t& idx) {
+    bool AdcManager::unitToIndex(adc_unit_t unit, size_t &idx)
+    {
         switch (unit) {
-            case ADC_UNIT_1:
-                idx = 0;
-                return true;
-            case ADC_UNIT_2:
-                idx = 1;
-                return true;
-            default:
-                return false;
+        case ADC_UNIT_1:
+            idx = 0;
+            return true;
+        case ADC_UNIT_2:
+            idx = 1;
+            return true;
+        default:
+            return false;
         }
     }
 
-    size_t AdcManager::attenToIndex(adc_atten_t atten) {
+    size_t AdcManager::attenToIndex(adc_atten_t atten)
+    {
         switch (atten) {
-            case ADC_ATTEN_DB_0:
-                return 0;
-            case ADC_ATTEN_DB_2_5:
-                return 1;
-            case ADC_ATTEN_DB_6:
-                return 2;
-            case ADC_ATTEN_DB_12:
-                return 3;
-            default:
-                return 3;
+        case ADC_ATTEN_DB_0:
+            return 0;
+        case ADC_ATTEN_DB_2_5:
+            return 1;
+        case ADC_ATTEN_DB_6:
+            return 2;
+        case ADC_ATTEN_DB_12:
+            return 3;
+        default:
+            return 3;
         }
     }
 
-    adc_atten_t AdcManager::toIdfAttenuation(Attenuation atten) {
+    adc_atten_t AdcManager::toIdfAttenuation(Attenuation atten)
+    {
         switch (atten) {
-            case Attenuation::DB_0:
-                return ADC_ATTEN_DB_0;
-            case Attenuation::DB_2_5:
-                return ADC_ATTEN_DB_2_5;
-            case Attenuation::DB_6:
-                return ADC_ATTEN_DB_6;
-            case Attenuation::DB_12:
-            default:
-                return ADC_ATTEN_DB_12;
+        case Attenuation::DB_0:
+            return ADC_ATTEN_DB_0;
+        case Attenuation::DB_2_5:
+            return ADC_ATTEN_DB_2_5;
+        case Attenuation::DB_6:
+            return ADC_ATTEN_DB_6;
+        case Attenuation::DB_12:
+        default:
+            return ADC_ATTEN_DB_12;
         }
     }
 
     // Rough nominal full-scale input voltage per attenuation. Only used
     // when eFuse calibration is unavailable. Numbers are typical design-
     // guide values, not per-chip — expect 5–10 % error.
-    uint32_t AdcManager::fallbackFullScaleMv(adc_atten_t atten) {
+    uint32_t AdcManager::fallbackFullScaleMv(adc_atten_t atten)
+    {
         switch (atten) {
-            case ADC_ATTEN_DB_0:
-                return 950U;
-            case ADC_ATTEN_DB_2_5:
-                return 1250U;
-            case ADC_ATTEN_DB_6:
-                return 1750U;
-            case ADC_ATTEN_DB_12:
-            default:
-                return 3100U;
+        case ADC_ATTEN_DB_0:
+            return 950U;
+        case ADC_ATTEN_DB_2_5:
+            return 1250U;
+        case ADC_ATTEN_DB_6:
+            return 1750U;
+        case ADC_ATTEN_DB_12:
+        default:
+            return 3100U;
         }
     }
 
-    uint32_t AdcManager::rawToMvFallback(int raw, adc_atten_t atten) {
+    uint32_t AdcManager::rawToMvFallback(int raw, adc_atten_t atten)
+    {
         if (raw < 0) {
             raw = 0;
         }
-        static constexpr uint32_t MAX_RAW = 4095U;  // 12-bit effective
+        static constexpr uint32_t MAX_RAW = 4095U; // 12-bit effective
         const uint32_t full = fallbackFullScaleMv(atten);
         return (static_cast<uint32_t>(raw) * full) / MAX_RAW;
     }
 
-}  // namespace ungula::hal::adc
+} // namespace ungula::hal::adc
 
-#endif  // ESP_PLATFORM
+#endif // ESP_PLATFORM

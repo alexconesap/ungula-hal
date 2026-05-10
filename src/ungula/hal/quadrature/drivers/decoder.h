@@ -14,32 +14,34 @@
 /// useful for compile-checks but not for simulating motion. Tests of
 /// consumer code should use `DecoderFake` to script counts.
 
-namespace ungula::hal::quadrature::drivers {
+namespace ungula::hal::quadrature::drivers
+{
 
     class Decoder final : public IDecoder {
-        public:
-            Decoder();
-            ~Decoder() override;
+    public:
+        Decoder();
+        ~Decoder() override;
 
-            bool begin(uint8_t pinA, uint8_t pinB, int32_t initialCount = 0) override;
-            bool stop() override;
-            int32_t count() const override;
-            bool reset(int32_t value = 0) override;
+        bool begin(uint8_t pinA, uint8_t pinB, int32_t initialCount = 0) override;
+        bool stop() override;
+        int32_t count() const override;
+        bool reset(int32_t value = 0) override;
 
-            uint8_t pinA() const override {
-                return pinA_;
-            }
-            uint8_t pinB() const override {
-                return pinB_;
-            }
+        uint8_t pinA() const override
+        {
+            return pinA_;
+        }
+        uint8_t pinB() const override
+        {
+            return pinB_;
+        }
 
-        private:
-            bool installed_ = false;
-            uint8_t pinA_ = 0xFF;
-            uint8_t pinB_ = 0xFF;
-            mutable int32_t count_ =
-                    0;  // mutable so const accessor on host can latch hardware state
-            void* unit_ = nullptr;
+    private:
+        bool installed_ = false;
+        uint8_t pinA_ = 0xFF;
+        uint8_t pinB_ = 0xFF;
+        mutable int32_t count_ = 0; // mutable so const accessor on host can latch hardware state
+        void *unit_ = nullptr;
     };
 
-}  // namespace ungula::hal::quadrature::drivers
+} // namespace ungula::hal::quadrature::drivers

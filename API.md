@@ -401,7 +401,15 @@ Header-only fake. Records `selectChannel_` calls, exposes scriptable failure inj
 
 ### `ungula::hal::pwm_input::IPwmInput`
 
-Abstract single-pin PWM-input capture. The interface only exposes "what was the most recent high-pulse width and period", not per-edge events — backends (GPIO ISR + `esp_timer` on ESP32) record the latest measurement asynchronously and callers poll. Non-copyable.
+Abstract single-pin PWM-input capture. Exposes the latest high-pulse width and period for polling consumers, plus an optional per-period ISR callback (`setSampleCallback`) for consumers that need zero-latency updates without a polling task. The backend (GPIO ISR + `esp_timer` on ESP32) records every edge and fires the callback on the rising edge after a complete period has been captured. Non-copyable.
+
+### `ungula::hal::pwm_input::SampleCallback`
+
+```cpp
+using SampleCallback = void (*)(void* ctx);
+```
+
+ISR-context callback signature for `IPwmInput::setSampleCallback`. The callback runs under the same constraints as a GPIO ISR: short, IRAM-safe, no logging, no I2C/SPI, no blocking calls. The accessor methods (`lastHighTimeUs()`, `lastPeriodUs()`, `pin()`) are safe to call from inside it.
 
 ### `ungula::hal::pwm_input::drivers::PwmInput`
 
@@ -409,7 +417,7 @@ Concrete `IPwmInput`, platform-dispatched. ESP32 backend installs a per-pin GPIO
 
 ### `ungula::hal::pwm_input::drivers::PwmInputFake`
 
-Header-only fake. Test knobs: `injectSample(highUs, periodUs)`, `setHighTimeUs`, `setPeriodUs`, `setHasSample`, `setSampleAgeUs`. Counters: `beginCallCount`, `stopCallCount`, `injectCallCount`. Use whenever a consumer driver takes `IPwmInput&`.
+Header-only fake. Test knobs: `injectSample(highUs, periodUs)` (silent — does *not* fire the callback), `triggerSample(highUs, periodUs)` (injects + fires the callback if armed, simulating an ISR fire), `setHighTimeUs`, `setPeriodUs`, `setHasSample`, `setSampleAgeUs`. Counters: `beginCallCount`, `stopCallCount`, `injectCallCount`, `setCallbackCallCount`, `callbackInvocationCount`. Use whenever a consumer driver takes `IPwmInput&`.
 
 ### `ungula::hal::quadrature::IDecoder`
 
@@ -594,6 +602,7 @@ virtual uint32_t lastPeriodUs() const = 0;
 virtual bool hasSample() const = 0;
 virtual uint32_t sampleAgeUs() const = 0;
 virtual uint8_t pin() const = 0;
+virtual void setSampleCallback(SampleCallback cb, void* ctx) = 0;
 ```
 
 - **`begin`** — install the capture for `pin`. Idempotent — second call returns `false`.
@@ -601,8 +610,9 @@ virtual uint8_t pin() const = 0;
 - **`lastHighTimeUs`** / **`lastPeriodUs`** — most recent high-pulse width and full-period duration in µs. Both return `0` until a complete period has been observed.
 - **`hasSample`** — `true` once at least one full period has been captured.
 - **`sampleAgeUs`** — microseconds since the most recent edge. Useful for detecting a stalled signal even when `hasSample()` is `true`.
+- **`setSampleCallback`** — install (or disarm with `cb = nullptr`) a function the backend invokes from ISR context after every complete period sample. The callback runs under the standard GPIO-ISR rules: short, IRAM-safe, no logging, no I2C/SPI, no blocking. One slot per instance — re-arming replaces any previous callback. Use this when a consumer needs per-frame latency without running a polling task; consumers see exactly the same accessor values inside the callback as they would right after polling.
 - **Failure behavior** — `bool` returns are `false` on failure. The accessors do not signal errors; they return `0` when there is no sample yet. Pair them with `hasSample()` / `sampleAgeUs()` for liveness checks.
-- **Side effects** — concrete ESP32 driver installs the global GPIO ISR service on first `begin()` and registers a per-pin handler. The fake exposes `injectSample(highUs, periodUs)` plus call counters for tests.
+- **Side effects** — concrete ESP32 driver installs the global GPIO ISR service on first `begin()` and registers a per-pin handler that fires the registered callback (if any) on the rising edge after the period has been computed. The host-side stub stores the callback but never calls it (no real samples). The fake exposes `injectSample()` (silent) and `triggerSample()` (fires the callback) plus call counters for tests.
 
 ### `ungula::hal::quadrature::IDecoder`
 

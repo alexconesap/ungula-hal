@@ -6,13 +6,20 @@
 
 #include "../can.h"
 
-namespace ungula::hal::can {
+namespace ungula::hal::can
+{
 
-    Can::Can(uint8_t controllerNumber) : port_(controllerNumber) {}
+    Can::Can(uint8_t controllerNumber)
+            : port_(controllerNumber)
+    {
+    }
 
-    Can::~Can() {}
+    Can::~Can()
+    {
+    }
 
-    bool Can::begin(uint8_t /*txPin*/, uint8_t /*rxPin*/, uint32_t /*bitrateBps*/) {
+    bool Can::begin(uint8_t /*txPin*/, uint8_t /*rxPin*/, uint32_t /*bitrateBps*/)
+    {
         if (installed_) {
             return false;
         }
@@ -20,37 +27,44 @@ namespace ungula::hal::can {
         return true;
     }
 
-    bool Can::stop() {
+    bool Can::stop()
+    {
         installed_ = false;
         return true;
     }
 
-    bool Can::send(const CanFrame& /*frame*/, uint32_t /*timeoutMs*/) {
+    bool Can::send(const CanFrame & /*frame*/, uint32_t /*timeoutMs*/)
+    {
         return installed_;
     }
 
-    int32_t Can::receive(CanFrame& /*out*/, uint32_t /*timeoutMs*/) {
+    int32_t Can::receive(CanFrame & /*out*/, uint32_t /*timeoutMs*/)
+    {
         // Stub never produces frames; tests that exercise reception
         // belong on real hardware (or with an injected fake).
         return installed_ ? 0 : -1;
     }
 
-    bool Can::setAcceptanceFilter(uint32_t /*id*/, uint32_t /*mask*/, bool /*extendedId*/) {
+    bool Can::setAcceptanceFilter(uint32_t /*id*/, uint32_t /*mask*/, bool /*extendedId*/)
+    {
         return installed_;
     }
 
-    bool Can::clearAcceptanceFilter() {
+    bool Can::clearAcceptanceFilter()
+    {
         return installed_;
     }
 
-    bool Can::isBusOff() const {
+    bool Can::isBusOff() const
+    {
         return false;
     }
 
-    bool Can::recoverFromBusOff() {
+    bool Can::recoverFromBusOff()
+    {
         return installed_;
     }
 
-}  // namespace ungula::hal::can
+} // namespace ungula::hal::can
 
-#endif  // !ESP_PLATFORM
+#endif // !ESP_PLATFORM

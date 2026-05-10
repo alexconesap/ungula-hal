@@ -6,7 +6,8 @@
 
 #include "ungula/hal/pwm_input/drivers/pwm_input.h"
 
-namespace ungula::hal::pwm_input::drivers {
+namespace ungula::hal::pwm_input::drivers
+{
 
     // Host stub. Real PWM-input capture is meaningless off-target — host
     // tests of consumer code should use `PwmInputFake` to script samples.
@@ -15,7 +16,8 @@ namespace ungula::hal::pwm_input::drivers {
     PwmInput::PwmInput() = default;
     PwmInput::~PwmInput() = default;
 
-    bool PwmInput::begin(uint8_t pin) {
+    bool PwmInput::begin(uint8_t pin)
+    {
         if (installed_) {
             return false;
         }
@@ -24,27 +26,41 @@ namespace ungula::hal::pwm_input::drivers {
         return true;
     }
 
-    bool PwmInput::stop() {
+    bool PwmInput::stop()
+    {
         installed_ = false;
         return true;
     }
 
-    uint32_t PwmInput::lastHighTimeUs() const {
+    uint32_t PwmInput::lastHighTimeUs() const
+    {
         return 0U;
     }
 
-    uint32_t PwmInput::lastPeriodUs() const {
+    uint32_t PwmInput::lastPeriodUs() const
+    {
         return 0U;
     }
 
-    bool PwmInput::hasSample() const {
+    bool PwmInput::hasSample() const
+    {
         return false;
     }
 
-    uint32_t PwmInput::sampleAgeUs() const {
+    uint32_t PwmInput::sampleAgeUs() const
+    {
         return 0U;
     }
 
-}  // namespace ungula::hal::pwm_input::drivers
+    void PwmInput::setSampleCallback(SampleCallback /*cb*/, void * /*ctx*/)
+    {
+        // Host stub never produces samples, so a callback could never
+        // fire. Accept and drop the registration — this lets consumer
+        // code that always installs an ISR callback compile and link
+        // for host tests; the test should drive a `PwmInputFake`
+        // instead to actually exercise the callback path.
+    }
 
-#endif  // !ESP_PLATFORM
+} // namespace ungula::hal::pwm_input::drivers
+
+#endif // !ESP_PLATFORM

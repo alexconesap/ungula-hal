@@ -53,27 +53,32 @@
 // ISR placement attribute — puts the function in IRAM so it survives flash ops.
 #define UNGULA_ISR_ATTR IRAM_ATTR
 
-namespace ungula::hal::gpio {
+namespace ungula::hal::gpio
+{
 
     // ---- Pin validation ----
 
-    namespace detail {
+    namespace detail
+    {
 
-        inline bool isValidGpio(uint8_t pin) {
+        inline bool isValidGpio(uint8_t pin)
+        {
             return GPIO_IS_VALID_GPIO(static_cast<int>(pin));
         }
 
-        inline bool isValidOutputGpio(uint8_t pin) {
+        inline bool isValidOutputGpio(uint8_t pin)
+        {
             return GPIO_IS_VALID_OUTPUT_GPIO(static_cast<int>(pin));
         }
 
-    }  // namespace detail
+    } // namespace detail
 
     // ---- Pin configuration ----
     // Uses gpio_config() to set direction + pulls atomically.
     // Returns true on success, false on invalid pin or driver error.
 
-    inline bool configOutput(uint8_t pin) {
+    inline bool configOutput(uint8_t pin)
+    {
         if (!detail::isValidOutputGpio(pin)) {
             return false;
         }
@@ -88,7 +93,8 @@ namespace ungula::hal::gpio {
         return gpio_config(&cfg) == ESP_OK;
     }
 
-    inline bool configInput(uint8_t pin) {
+    inline bool configInput(uint8_t pin)
+    {
         if (!detail::isValidGpio(pin)) {
             return false;
         }
@@ -103,7 +109,8 @@ namespace ungula::hal::gpio {
         return gpio_config(&cfg) == ESP_OK;
     }
 
-    inline bool configInputPullup(uint8_t pin) {
+    inline bool configInputPullup(uint8_t pin)
+    {
         if (!detail::isValidGpio(pin)) {
             return false;
         }
@@ -118,7 +125,8 @@ namespace ungula::hal::gpio {
         return gpio_config(&cfg) == ESP_OK;
     }
 
-    inline bool configInputPulldown(uint8_t pin) {
+    inline bool configInputPulldown(uint8_t pin)
+    {
         if (!detail::isValidGpio(pin)) {
             return false;
         }
@@ -133,8 +141,8 @@ namespace ungula::hal::gpio {
         return gpio_config(&cfg) == ESP_OK;
     }
 
-    inline bool configOutputRelay(uint8_t pin,
-                                  RelayPolarity active_low = RelayPolarity::ActiveLow) {
+    inline bool configOutputRelay(uint8_t pin, RelayPolarity active_low = RelayPolarity::ActiveLow)
+    {
         if (!detail::isValidOutputGpio(pin)) {
             return false;
         }
@@ -157,7 +165,8 @@ namespace ungula::hal::gpio {
         return gpio_get_level(static_cast<gpio_num_t>(pin)) == off_level;
     }
 
-    inline bool configOutputOpenDrain(uint8_t pin) {
+    inline bool configOutputOpenDrain(uint8_t pin)
+    {
         if (!detail::isValidOutputGpio(pin)) {
             return false;
         }
@@ -180,25 +189,30 @@ namespace ungula::hal::gpio {
     // No function call overhead, no pin check. Safe from ISR context.
     // Caller MUST have configured the pin via a config*() call first.
 
-    inline bool read(uint8_t pin) {
+    inline bool read(uint8_t pin)
+    {
         return gpio_ll_get_level(&GPIO, static_cast<gpio_num_t>(pin)) != 0;
     }
 
-    inline void setHigh(uint8_t pin) {
+    inline void setHigh(uint8_t pin)
+    {
         gpio_ll_set_level(&GPIO, static_cast<gpio_num_t>(pin), 1);
     }
 
-    inline void setLow(uint8_t pin) {
+    inline void setLow(uint8_t pin)
+    {
         gpio_ll_set_level(&GPIO, static_cast<gpio_num_t>(pin), 0);
     }
 
-    inline void write(uint8_t pin, bool high) {
+    inline void write(uint8_t pin, bool high)
+    {
         gpio_ll_set_level(&GPIO, static_cast<gpio_num_t>(pin), high ? 1 : 0);
     }
 
     /// @brief Read-then-invert. NOT atomic — do not use if the pin is
     /// shared between ISR and task code without external synchronisation.
-    inline void toggle(uint8_t pin) {
+    inline void toggle(uint8_t pin)
+    {
         write(pin, !read(pin));
     }
 
@@ -206,81 +220,93 @@ namespace ungula::hal::gpio {
 
     /// @brief Wrapper for setHigh(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
-    inline void writeHigh(uint8_t pin) {
+    inline void writeHigh(uint8_t pin)
+    {
         setHigh(pin);
     }
 
     /// @brief Wrapper for setLow(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
-    inline void writeLow(uint8_t pin) {
+    inline void writeLow(uint8_t pin)
+    {
         setLow(pin);
     }
 
     /// @brief Wrapper for setHigh(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
-    inline void on(uint8_t pin) {
+    inline void on(uint8_t pin)
+    {
         setHigh(pin);
     }
 
     /// @brief Wrapper for setLow(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
-    inline void off(uint8_t pin) {
+    inline void off(uint8_t pin)
+    {
         setLow(pin);
     }
 
     /// @brief Wrapper for read(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
     /// @return true if the pin is HIGH, false otherwise.
-    inline bool isOn(uint8_t pin) {
+    inline bool isOn(uint8_t pin)
+    {
         return read(pin);
     }
 
     /// @brief Wrapper for read(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
     /// @return true if the pin is LOW, false otherwise.
-    inline bool isOff(uint8_t pin) {
+    inline bool isOff(uint8_t pin)
+    {
         return !read(pin);
     }
 
     /// @brief Wrapper for read(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
     /// @return true if the pin is HIGH, false otherwise.
-    inline bool isHigh(uint8_t pin) {
+    inline bool isHigh(uint8_t pin)
+    {
         return read(pin);
     }
 
     /// @brief Wrapper for !read(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
     /// @return true if the pin is LOW, false otherwise.
-    inline bool isLow(uint8_t pin) {
+    inline bool isLow(uint8_t pin)
+    {
         return !read(pin);
     }
 
     /// @brief Wrapper for read(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
     /// @return true if the pin is HIGH, false otherwise.
-    inline bool isEnabled(uint8_t pin) {
+    inline bool isEnabled(uint8_t pin)
+    {
         return read(pin);
     }
 
     /// @brief Wrapper for !read(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
     /// @return true if the pin is LOW, false otherwise.
-    inline bool isDisabled(uint8_t pin) {
+    inline bool isDisabled(uint8_t pin)
+    {
         return !read(pin);
     }
 
     /// @brief Wrapper for !read(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
     /// @return true if the pin is LOW, false otherwise.
-    inline bool isOpen(uint8_t pin) {
+    inline bool isOpen(uint8_t pin)
+    {
         return !read(pin);
     }
 
     /// @brief Wrapper for read(). Use only if your compiler optimizes inlined calls.
     /// @param pin GPIO number.
     /// @return true if the pin is HIGH, false otherwise.
-    inline bool isClosed(uint8_t pin) {
+    inline bool isClosed(uint8_t pin)
+    {
         return read(pin);
     }
 
@@ -297,7 +323,8 @@ namespace ungula::hal::gpio {
     /// @param pin GPIO number.
     /// @param out Receives the pin level (true = HIGH) on success.
     /// @return true if the pin is valid and was read, false otherwise.
-    inline bool checkedRead(uint8_t pin, bool& out) {
+    inline bool checkedRead(uint8_t pin, bool &out)
+    {
         if (!detail::isValidGpio(pin)) {
             return false;
         }
@@ -309,7 +336,8 @@ namespace ungula::hal::gpio {
     /// This is slower than unchecked setHigh() due to the validation step, but safe for any pin
     /// number.
     /// @return true if the pin is a valid output GPIO, false otherwise.
-    inline bool checkedSetHigh(uint8_t pin) {
+    inline bool checkedSetHigh(uint8_t pin)
+    {
         if (!detail::isValidOutputGpio(pin)) {
             return false;
         }
@@ -321,7 +349,8 @@ namespace ungula::hal::gpio {
     /// This is slower than unchecked setLow() due to the validation step, but safe for any pin
     /// number.
     /// @return true if the pin is a valid output GPIO, false otherwise.
-    inline bool checkedSetLow(uint8_t pin) {
+    inline bool checkedSetLow(uint8_t pin)
+    {
         if (!detail::isValidOutputGpio(pin)) {
             return false;
         }
@@ -333,7 +362,8 @@ namespace ungula::hal::gpio {
     /// This is slower than unchecked write() due to the validation step, but safe for any pin
     /// number.
     /// @return true if the pin is a valid output GPIO, false otherwise.
-    inline bool checkedWrite(uint8_t pin, bool high) {
+    inline bool checkedWrite(uint8_t pin, bool high)
+    {
         if (!detail::isValidOutputGpio(pin)) {
             return false;
         }
@@ -348,29 +378,29 @@ namespace ungula::hal::gpio {
     /// @brief Pull resistor mode for interrupt-enabled inputs.
     enum class PullMode : uint8_t { NONE = 0, UP = 1, DOWN = 2 };
 
-    using GpioIsrHandler = void (*)(void*);
+    using GpioIsrHandler = void (*)(void *);
 
     /// @brief Configure a pin as input with interrupt on the specified edge.
     /// @param pin GPIO number.
     /// @param edge Which edge(s) trigger the interrupt.
     /// @param pull Internal pull resistor selection (default: NONE).
     /// @return true on success, false on invalid pin or driver error.
-    inline bool configInputInterrupt(uint8_t pin, InterruptEdge edge,
-                                     PullMode pull = PullMode::NONE) {
+    inline bool configInputInterrupt(uint8_t pin, InterruptEdge edge, PullMode pull = PullMode::NONE)
+    {
         if (!detail::isValidGpio(pin)) {
             return false;
         }
         gpio_int_type_t intrType = GPIO_INTR_DISABLE;
         switch (edge) {
-            case InterruptEdge::EDGE_RISING:
-                intrType = GPIO_INTR_POSEDGE;
-                break;
-            case InterruptEdge::EDGE_FALLING:
-                intrType = GPIO_INTR_NEGEDGE;
-                break;
-            case InterruptEdge::EDGE_ANY:
-                intrType = GPIO_INTR_ANYEDGE;
-                break;
+        case InterruptEdge::EDGE_RISING:
+            intrType = GPIO_INTR_POSEDGE;
+            break;
+        case InterruptEdge::EDGE_FALLING:
+            intrType = GPIO_INTR_NEGEDGE;
+            break;
+        case InterruptEdge::EDGE_ANY:
+            intrType = GPIO_INTR_ANYEDGE;
+            break;
         }
         // Do NOT optimize initialization to guarantee portability with different ESP-IDF
         // versions and for debugging.
@@ -383,16 +413,19 @@ namespace ungula::hal::gpio {
         return gpio_config(&cfg) == ESP_OK;
     }
 
-    inline bool installIsrService() {
+    inline bool installIsrService()
+    {
         esp_err_t err = gpio_install_isr_service(0);
         return (err == ESP_OK || err == ESP_ERR_INVALID_STATE);
     }
 
-    inline bool addIsrHandler(uint8_t pin, GpioIsrHandler handler, void* context) {
+    inline bool addIsrHandler(uint8_t pin, GpioIsrHandler handler, void *context)
+    {
         return gpio_isr_handler_add(static_cast<gpio_num_t>(pin), handler, context) == ESP_OK;
     }
 
-    inline bool removeIsrHandler(uint8_t pin) {
+    inline bool removeIsrHandler(uint8_t pin)
+    {
         return gpio_isr_handler_remove(static_cast<gpio_num_t>(pin)) == ESP_OK;
     }
 
@@ -407,4 +440,4 @@ namespace ungula::hal::gpio {
     // ADC input?? see <ungula/hal/adc/adc_manager.h>.
     // Conceptually ADC is its own peripheral, not a GPIO function
 
-}  // namespace ungula::hal::gpio
+} // namespace ungula::hal::gpio

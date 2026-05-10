@@ -7,17 +7,23 @@
 #include "../i2c_master.h"
 #include "driver/i2c.h"
 
-namespace ungula::hal::i2c {
+namespace ungula::hal::i2c
+{
 
-    I2cMaster::I2cMaster(uint8_t portNumber) : port_(portNumber) {}
+    I2cMaster::I2cMaster(uint8_t portNumber)
+            : port_(portNumber)
+    {
+    }
 
-    I2cMaster::~I2cMaster() {
+    I2cMaster::~I2cMaster()
+    {
         if (installed_) {
             i2c_driver_delete(static_cast<i2c_port_t>(port_));
         }
     }
 
-    bool I2cMaster::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freqHz) {
+    bool I2cMaster::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freqHz)
+    {
         if (installed_) {
             return false;
         }
@@ -43,7 +49,8 @@ namespace ungula::hal::i2c {
         return true;
     }
 
-    bool I2cMaster::write(uint8_t addr, const uint8_t* data, size_t length, uint32_t timeoutMs) {
+    bool I2cMaster::write(uint8_t addr, const uint8_t *data, size_t length, uint32_t timeoutMs)
+    {
         if (!installed_) {
             return false;
         }
@@ -56,13 +63,13 @@ namespace ungula::hal::i2c {
         }
         i2c_master_stop(cmd);
 
-        esp_err_t err =
-                i2c_master_cmd_begin(static_cast<i2c_port_t>(port_), cmd, pdMS_TO_TICKS(timeoutMs));
+        esp_err_t err = i2c_master_cmd_begin(static_cast<i2c_port_t>(port_), cmd, pdMS_TO_TICKS(timeoutMs));
         i2c_cmd_link_delete(cmd);
         return err == ESP_OK;
     }
 
-    bool I2cMaster::read(uint8_t addr, uint8_t* buffer, size_t length, uint32_t timeoutMs) {
+    bool I2cMaster::read(uint8_t addr, uint8_t *buffer, size_t length, uint32_t timeoutMs)
+    {
         if (!installed_ || length == 0 || buffer == nullptr) {
             return false;
         }
@@ -76,14 +83,14 @@ namespace ungula::hal::i2c {
         i2c_master_read_byte(cmd, buffer + length - 1, I2C_MASTER_NACK);
         i2c_master_stop(cmd);
 
-        esp_err_t err =
-                i2c_master_cmd_begin(static_cast<i2c_port_t>(port_), cmd, pdMS_TO_TICKS(timeoutMs));
+        esp_err_t err = i2c_master_cmd_begin(static_cast<i2c_port_t>(port_), cmd, pdMS_TO_TICKS(timeoutMs));
         i2c_cmd_link_delete(cmd);
         return err == ESP_OK;
     }
 
-    bool I2cMaster::writeRead(uint8_t addr, const uint8_t* writeData, size_t writeLen,
-                              uint8_t* readBuf, size_t readLen, uint32_t timeoutMs) {
+    bool I2cMaster::writeRead(uint8_t addr, const uint8_t *writeData, size_t writeLen, uint8_t *readBuf, size_t readLen,
+                              uint32_t timeoutMs)
+    {
         if (!installed_ || readLen == 0 || readBuf == nullptr) {
             return false;
         }
@@ -106,12 +113,11 @@ namespace ungula::hal::i2c {
         i2c_master_read_byte(cmd, readBuf + readLen - 1, I2C_MASTER_NACK);
         i2c_master_stop(cmd);
 
-        esp_err_t err =
-                i2c_master_cmd_begin(static_cast<i2c_port_t>(port_), cmd, pdMS_TO_TICKS(timeoutMs));
+        esp_err_t err = i2c_master_cmd_begin(static_cast<i2c_port_t>(port_), cmd, pdMS_TO_TICKS(timeoutMs));
         i2c_cmd_link_delete(cmd);
         return err == ESP_OK;
     }
 
-}  // namespace ungula::hal::i2c
+} // namespace ungula::hal::i2c
 
-#endif  // ESP_PLATFORM
+#endif // ESP_PLATFORM
