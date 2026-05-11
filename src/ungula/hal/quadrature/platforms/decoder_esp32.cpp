@@ -38,7 +38,8 @@ namespace ungula::hal::quadrature::drivers
         }
         EspState *st = new EspState();
         pcnt_unit_config_t unitCfg{};
-        unitCfg.high_limit = 32 '767; unitCfg.low_limit = -32' 768;
+        unitCfg.high_limit = 32'767;
+        unitCfg.low_limit = -32'768;
         unitCfg.flags.accum_count = 1; // virtual 32-bit accumulator
         if (pcnt_new_unit(&unitCfg, &st->unit) != ESP_OK) {
             delete st;

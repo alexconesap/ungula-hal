@@ -56,7 +56,7 @@ namespace
         EXPECT_TRUE(api.begin(7));
         EXPECT_FALSE(api.hasSample());
 
-        fake.injectSample(/*highUs=*/2 '500, /*periodUs=*/8' 700);
+        fake.injectSample(/*highUs=*/2'500, /*periodUs=*/8'700);
         EXPECT_TRUE(api.hasSample());
         EXPECT_EQ(api.lastHighTimeUs(), 2'500U);
         EXPECT_EQ(api.lastPeriodUs(), 8'700U);
@@ -74,7 +74,7 @@ namespace
     {
         PwmInputFake fake;
         fake.begin(7);
-        fake.injectSample(1 '000, 8' 700);
+        fake.injectSample(1'000, 8'700);
         fake.setSampleAgeUs(50'000);
         EXPECT_EQ(fake.sampleAgeUs(), 50'000U);
     }
@@ -111,8 +111,8 @@ namespace
         probe.source = &api;
         api.setSampleCallback(&onSample, &probe);
 
-        fake.triggerSample(/*highUs=*/2 '500, /*periodUs=*/8' 700);
-        fake.triggerSample(/*highUs=*/3 '000, /*periodUs=*/8' 700);
+        fake.triggerSample(/*highUs=*/2'500, /*periodUs=*/8'700);
+        fake.triggerSample(/*highUs=*/3'000, /*periodUs=*/8'700);
 
         EXPECT_EQ(probe.hits, 2U);
         EXPECT_EQ(probe.lastHighUs, 3'000U);
@@ -126,11 +126,11 @@ namespace
         fake.begin(7);
         CallbackProbe probe;
         fake.setSampleCallback(&onSample, &probe);
-        fake.triggerSample(1 '000, 8' 700);
+        fake.triggerSample(1'000, 8'700);
         EXPECT_EQ(probe.hits, 1U);
 
         fake.setSampleCallback(nullptr, nullptr);
-        fake.triggerSample(1 '000, 8' 700);
+        fake.triggerSample(1'000, 8'700);
         EXPECT_EQ(probe.hits, 1U); // unchanged
     }
 
@@ -143,7 +143,7 @@ namespace
         fake.begin(7);
         CallbackProbe probe;
         fake.setSampleCallback(&onSample, &probe);
-        fake.injectSample(1 '000, 8' 700);
+        fake.injectSample(1'000, 8'700);
         EXPECT_EQ(probe.hits, 0U);
     }
 

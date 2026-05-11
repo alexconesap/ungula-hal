@@ -53,17 +53,21 @@ namespace ungula::hal::can
     /// Backends map these to their own internal presets; values not in
     /// the table here may still work — drivers reject what they cannot
     /// configure by returning `false` from `begin()`.
-    constexpr uint32_t BITRATE_25K = 25 '000; constexpr uint32_t BITRATE_50K = 50' 000;
-    constexpr uint32_t BITRATE_100K = 100 '000; constexpr uint32_t BITRATE_125K = 125' 000;
-    constexpr uint32_t BITRATE_250K = 250 '000; constexpr uint32_t BITRATE_500K = 500' 000;
-    constexpr uint32_t BITRATE_800K = 800 '000; constexpr uint32_t BITRATE_1M = 1 ' 000' 000;
+    constexpr uint32_t BITRATE_25K = 25'000;
+    constexpr uint32_t BITRATE_50K = 50'000;
+    constexpr uint32_t BITRATE_100K = 100'000;
+    constexpr uint32_t BITRATE_125K = 125'000;
+    constexpr uint32_t BITRATE_250K = 250'000;
+    constexpr uint32_t BITRATE_500K = 500'000;
+    constexpr uint32_t BITRATE_800K = 800'000;
+    constexpr uint32_t BITRATE_1M = 1'000'000;
 
-        /// @brief CAN controller wrapper.
-        ///
-        /// Owns the driver for a single hardware CAN/TWAI controller.
-        /// Destructor uninstalls it. Non-copyable — one owner per
-        /// physical controller.
-        class Can {
+    /// @brief CAN controller wrapper.
+    ///
+    /// Owns the driver for a single hardware CAN/TWAI controller.
+    /// Destructor uninstalls it. Non-copyable — one owner per
+    /// physical controller.
+    class Can {
     public:
         /// @param controllerNumber Hardware controller index (0 on
         ///                         ESP32, which has a single TWAI).
