@@ -4,7 +4,7 @@
 
 #include "multiplexer_tca9548.h"
 
-#include "ungula/core/time/time_control.h"
+#include "ungula/core/time/time.h"
 
 namespace ungula::hal::multiplexer::drivers
 {
