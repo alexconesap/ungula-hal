@@ -25,12 +25,12 @@
 namespace ungula::hal::spi
 {
 
-    /// @brief SPI master device wrapper.
-    ///
-    /// Owns one SPI device handle on a bus. Destructor removes the device
-    /// (but does not free the bus — other devices may share it).
-    /// Non-copyable.
-    class SpiMaster {
+/// @brief SPI master device wrapper.
+///
+/// Owns one SPI device handle on a bus. Destructor removes the device
+/// (but does not free the bus — other devices may share it).
+/// Non-copyable.
+class SpiMaster {
     public:
         SpiMaster() = default;
         ~SpiMaster();
@@ -47,8 +47,8 @@ namespace ungula::hal::spi
         /// @param mode      SPI mode 0-3 (CPOL | CPHA).
         /// @param host      SPI host index (1 = SPI2_HOST, 2 = SPI3_HOST on ESP32).
         /// @return true on success, false on error.
-        bool begin(uint8_t sclkPin, uint8_t misoPin, uint8_t mosiPin, uint8_t csPin, uint32_t freqHz = 1000000,
-                   uint8_t mode = 1, uint8_t host = 1);
+        bool begin(uint8_t sclkPin, uint8_t misoPin, uint8_t mosiPin, uint8_t csPin,
+                   uint32_t freqHz = 1000000, uint8_t mode = 1, uint8_t host = 1);
 
         /// @brief Full-duplex transfer. Simultaneously sends txData and receives into
         /// rxData.
@@ -71,6 +71,6 @@ namespace ungula::hal::spi
     private:
         bool installed_ = false;
         void *devHandle_ = nullptr;
-    };
+};
 
 } // namespace ungula::hal::spi

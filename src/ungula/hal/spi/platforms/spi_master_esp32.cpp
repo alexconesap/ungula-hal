@@ -12,18 +12,18 @@
 namespace ungula::hal::spi
 {
 
-    SpiMaster::~SpiMaster()
-    {
+SpiMaster::~SpiMaster()
+{
         if (installed_ && devHandle_ != nullptr) {
-            spi_bus_remove_device(static_cast<spi_device_handle_t>(devHandle_));
+                spi_bus_remove_device(static_cast<spi_device_handle_t>(devHandle_));
         }
-    }
+}
 
-    bool SpiMaster::begin(uint8_t sclkPin, uint8_t misoPin, uint8_t mosiPin, uint8_t csPin, uint32_t freqHz,
-                          uint8_t mode, uint8_t host)
-    {
+bool SpiMaster::begin(uint8_t sclkPin, uint8_t misoPin, uint8_t mosiPin, uint8_t csPin,
+                      uint32_t freqHz, uint8_t mode, uint8_t host)
+{
         if (installed_) {
-            return false;
+                return false;
         }
 
         spi_bus_config_t busCfg = {};
@@ -40,7 +40,7 @@ namespace ungula::hal::spi
         // device).
         esp_err_t err = spi_bus_initialize(spiHost, &busCfg, SPI_DMA_DISABLED);
         if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
-            return false;
+                return false;
         }
 
         spi_device_interface_config_t devCfg = {};
@@ -51,18 +51,18 @@ namespace ungula::hal::spi
 
         spi_device_handle_t handle = nullptr;
         if (spi_bus_add_device(spiHost, &devCfg, &handle) != ESP_OK) {
-            return false;
+                return false;
         }
 
         devHandle_ = handle;
         installed_ = true;
         return true;
-    }
+}
 
-    bool SpiMaster::transfer(const uint8_t *txData, uint8_t *rxData, size_t length)
-    {
+bool SpiMaster::transfer(const uint8_t *txData, uint8_t *rxData, size_t length)
+{
         if (!installed_ || length == 0) {
-            return false;
+                return false;
         }
 
         spi_transaction_t txn = {};
@@ -70,23 +70,24 @@ namespace ungula::hal::spi
         txn.tx_buffer = txData;
         txn.rx_buffer = rxData;
 
-        return spi_device_polling_transmit(static_cast<spi_device_handle_t>(devHandle_), &txn) == ESP_OK;
-    }
+        return spi_device_polling_transmit(static_cast<spi_device_handle_t>(devHandle_), &txn) ==
+               ESP_OK;
+}
 
-    bool SpiMaster::write(const uint8_t *data, size_t length)
-    {
+bool SpiMaster::write(const uint8_t *data, size_t length)
+{
         return transfer(data, nullptr, length);
-    }
+}
 
-    bool SpiMaster::read(uint8_t *buffer, size_t length)
-    {
+bool SpiMaster::read(uint8_t *buffer, size_t length)
+{
         return transfer(nullptr, buffer, length);
-    }
+}
 
-    bool SpiMaster::writeRead(const uint8_t *txData, size_t writeLen, uint8_t *rxBuf, size_t readLen)
-    {
+bool SpiMaster::writeRead(const uint8_t *txData, size_t writeLen, uint8_t *rxBuf, size_t readLen)
+{
         if (!installed_) {
-            return false;
+                return false;
         }
 
         // Combined: write command bytes then read response, all under one CS assertion.
@@ -94,7 +95,7 @@ namespace ungula::hal::spi
         // buffer where the first writeLen bytes are discarded (dummy from the command phase).
         const size_t totalLen = writeLen + readLen;
         if (totalLen == 0 || totalLen > 64) {
-            return false; // keep stack allocation bounded
+                return false; // keep stack allocation bounded
         }
 
         uint8_t txBuf[64] = {};
@@ -106,13 +107,14 @@ namespace ungula::hal::spi
         txn.tx_buffer = txBuf;
         txn.rx_buffer = rxAll;
 
-        if (spi_device_polling_transmit(static_cast<spi_device_handle_t>(devHandle_), &txn) != ESP_OK) {
-            return false;
+        if (spi_device_polling_transmit(static_cast<spi_device_handle_t>(devHandle_), &txn) !=
+            ESP_OK) {
+                return false;
         }
 
         memcpy(rxBuf, rxAll + writeLen, readLen);
         return true;
-    }
+}
 
 } // namespace ungula::hal::spi
 

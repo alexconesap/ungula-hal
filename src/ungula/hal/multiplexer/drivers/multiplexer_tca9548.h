@@ -22,9 +22,9 @@
 namespace ungula::hal::multiplexer::drivers
 {
 
-    constexpr uint8_t TCA9548_DEFAULT_ADDRESS = 0x70;
+constexpr uint8_t TCA9548_DEFAULT_ADDRESS = 0x70;
 
-    class MultiplexerTCA9548 final : public IMultiplexer {
+class MultiplexerTCA9548 final : public IMultiplexer {
     public:
         /// @param i2cAddress  7-bit address (0x70..0x77).
         /// @param bus         Borrowed I2C master. Caller must keep it
@@ -45,6 +45,6 @@ namespace ungula::hal::multiplexer::drivers
 
     private:
         ungula::hal::i2c::I2cMaster &bus_;
-    };
+};
 
 } // namespace ungula::hal::multiplexer::drivers

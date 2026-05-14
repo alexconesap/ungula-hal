@@ -16,88 +16,88 @@
 namespace ungula::hal::quadrature::drivers
 {
 
-    class DecoderFake final : public IDecoder {
+class DecoderFake final : public IDecoder {
     public:
         DecoderFake() = default;
 
         bool begin(uint8_t pinA, uint8_t pinB, int32_t initialCount = 0) override
         {
-            if (installed_) {
-                return false;
-            }
-            pinA_ = pinA;
-            pinB_ = pinB;
-            count_ = initialCount;
-            installed_ = true;
-            ++beginCallCount_;
-            return true;
+                if (installed_) {
+                        return false;
+                }
+                pinA_ = pinA;
+                pinB_ = pinB;
+                count_ = initialCount;
+                installed_ = true;
+                ++beginCallCount_;
+                return true;
         }
         bool stop() override
         {
-            installed_ = false;
-            ++stopCallCount_;
-            return true;
+                installed_ = false;
+                ++stopCallCount_;
+                return true;
         }
         int32_t count() const override
         {
-            return count_;
+                return count_;
         }
         bool reset(int32_t value = 0) override
         {
-            count_ = value;
-            ++resetCallCount_;
-            return true;
+                count_ = value;
+                ++resetCallCount_;
+                return true;
         }
         bool hasIndex() const override
         {
-            return hasIndex_;
+                return hasIndex_;
         }
         bool latchedAtIndex() const override
         {
-            return atIndex_;
+                return atIndex_;
         }
         uint8_t pinA() const override
         {
-            return pinA_;
+                return pinA_;
         }
         uint8_t pinB() const override
         {
-            return pinB_;
+                return pinB_;
         }
 
         // ---- Test knobs ----
         void setCount(int32_t v)
         {
-            count_ = v;
+                count_ = v;
         }
         void tick(int32_t delta)
         {
-            count_ += delta;
+                count_ += delta;
         }
         void setHasIndex(bool v)
         {
-            hasIndex_ = v;
+                hasIndex_ = v;
         }
         void markIndex(bool v)
         {
-            atIndex_ = v;
+                atIndex_ = v;
         }
 
         unsigned beginCallCount() const
         {
-            return beginCallCount_;
+                return beginCallCount_;
         }
         unsigned stopCallCount() const
         {
-            return stopCallCount_;
+                return stopCallCount_;
         }
         unsigned resetCallCount() const
         {
-            return resetCallCount_;
+                return resetCallCount_;
         }
         bool isInstalled() const
         {
-            return installed_;
+                return installed_;
         }
 
     private:
@@ -111,6 +111,6 @@ namespace ungula::hal::quadrature::drivers
         unsigned beginCallCount_ = 0;
         unsigned stopCallCount_ = 0;
         unsigned resetCallCount_ = 0;
-    };
+};
 
 } // namespace ungula::hal::quadrature::drivers

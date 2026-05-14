@@ -23,7 +23,7 @@
 namespace ungula::hal::quadrature
 {
 
-    class IDecoder {
+class IDecoder {
     public:
         virtual ~IDecoder() = default;
 
@@ -46,14 +46,14 @@ namespace ungula::hal::quadrature
         /// @brief True when the decoder also tracks a Z (index) line.
         virtual bool hasIndex() const
         {
-            return false;
+                return false;
         }
 
         /// @brief True when the latest count was captured at the Z
         ///        pulse — meaningful only when `hasIndex()` is true.
         virtual bool latchedAtIndex() const
         {
-            return false;
+                return false;
         }
 
         /// @brief Pin A / pin B as supplied to `begin()`. 0xFF means
@@ -63,6 +63,6 @@ namespace ungula::hal::quadrature
 
     protected:
         IDecoder() = default;
-    };
+};
 
 } // namespace ungula::hal::quadrature

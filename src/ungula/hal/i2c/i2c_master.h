@@ -21,11 +21,11 @@
 namespace ungula::hal::i2c
 {
 
-    /// @brief I2C master port wrapper.
-    ///
-    /// Owns a single I2C master bus. Destructor releases the driver.
-    /// Non-copyable — one owner per physical port.
-    class I2cMaster {
+/// @brief I2C master port wrapper.
+///
+/// Owns a single I2C master bus. Destructor releases the driver.
+/// Non-copyable — one owner per physical port.
+class I2cMaster {
     public:
         /// @param portNumber Hardware I2C peripheral index (0 or 1 on ESP32).
         explicit I2cMaster(uint8_t portNumber);
@@ -66,18 +66,18 @@ namespace ungula::hal::i2c
         /// @param readLen    Number of bytes to read.
         /// @param timeoutMs  Timeout in milliseconds.
         /// @return true on success, false on NACK or timeout.
-        bool writeRead(uint8_t addr, const uint8_t *writeData, size_t writeLen, uint8_t *readBuf, size_t readLen,
-                       uint32_t timeoutMs = 50);
+        bool writeRead(uint8_t addr, const uint8_t *writeData, size_t writeLen, uint8_t *readBuf,
+                       size_t readLen, uint32_t timeoutMs = 50);
 
         /// @brief Hardware peripheral index passed at construction.
         uint8_t port() const
         {
-            return port_;
+                return port_;
         }
 
     private:
         uint8_t port_;
         bool installed_ = false;
-    };
+};
 
 } // namespace ungula::hal::i2c

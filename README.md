@@ -1,12 +1,24 @@
 # UngulaHal
 
-> **High-performance embedded C++ libraries for ESP32, STM32 and other MCUs** — hardware abstraction layer (GPIO, PWM, ADC, UART, I2C, SPI, CAN, multiplexer, PWM input capture, quadrature decoder).
+> **High-performance embedded C++ libraries for ESP32, STM32 and other MCUs** — hardware abstraction layer (GPIO, PWM, ADC, UART, I2C, SPI, CAN, multiplexer, PWM input capture, quadrature decoder, hardware timer, critical section).
 
-Hardware abstraction layer for embedded projects. Provides platform-portable GPIO, PWM, ADC, UART, I2C, SPI, CAN 2.0, an I2C bus multiplexer interface, single-pin PWM input capture, and quadrature (A/B) decoders.
+Hardware abstraction layer for embedded projects. Provides platform-portable GPIO, PWM, ADC, UART, I2C, SPI, CAN 2.0, an I2C bus multiplexer interface, single-pin PWM input capture, quadrature (A/B) decoders, deterministic hardware timers, and ISR-safe critical sections.
 
 Each peripheral ships as a stable C++ interface in the `ungula::hal::` namespace, a concrete platform-dispatched driver, and (where appropriate) a header-only fake for host tests. Higher-level libraries (`lib_loadcell`, `lib_motor`, `lib_sd`, `lib_encoder`) compile against the abstractions, not the vendor SDKs.
 
 On ESP32, GPIO uses `gpio_ll` direct register writes (single-cycle, ISR-safe); UART, I2C, SPI and CAN wrap the matching ESP-IDF drivers; PWM input capture uses GPIO-edge ISR + `esp_timer`; the quadrature decoder uses the PCNT (pulse counter) peripheral with hardware 4× decoding. On other platforms (host builds), no-op stubs are provided so consumer code compiles and links for unit tests.
+
+## Platform support
+
+Currently supported production backend:
+
+- ESP32
+
+Test-only backend:
+
+- default/fake backend for host tests
+
+The default backend is not suitable for production MCU targets. New MCU targets must provide platform-specific implementations for timer and synchronization primitives before being used in production.
 
 ## Quick Start
 
@@ -303,6 +315,109 @@ if (bus.isBusOff()) {
 
 Bitrate constants exposed in the same namespace: `BITRATE_25K` … `BITRATE_1M`. CAN-FD is not supported — separate class when the need arises.
 
+## Hardware timer (`ungula/hal/timer/drivers/hwtimer.h`)
+
+`IHwTimer` / `HwTimer` is the low-level pulse timer for deterministic ISR work. The contract is **true one-shot**: every successful `startOneShotTicks()` fires the callback exactly once. To produce a continuous (and possibly variable-period) pulse train, the callback calls `rearmFromIsr()` from inside itself. At the last pulse, the callback calls `disarmFromIsr()` so no further alarm can fire.
+
+### Real-world use case — variable-period ISR pulse engine
+
+```cpp
+#include <ungula/hal/gpio/gpio_access.h>
+#include <ungula/hal/timer/drivers/hwtimer.h>
+
+namespace gpio = ungula::hal::gpio;
+namespace timer = ungula::hal::timer;
+
+constexpr uint8_t STEP_PIN = 18;
+constexpr uint32_t TIMER_HZ = 1'000'000;    // 1 tick = 1 us
+constexpr uint32_t STEP_TICKS = 500;        // 500 us half-period
+
+timer::drivers::HwTimer pulseTimer;
+volatile uint32_t pulseEdges = 0;           // word-atomic on Xtensa
+
+void UNGULA_ISR_ATTR onPulse(void* /*ctx*/) {
+    // No RAII, no lock. The pulse ISR holds no state of its own — it
+    // just toggles the pin and re-arms.
+    gpio::toggle(STEP_PIN);
+    pulseEdges++;
+    pulseTimer.rearmFromIsr(STEP_TICKS);
+}
+
+void setup() {
+    gpio::configOutput(STEP_PIN);
+    gpio::setLow(STEP_PIN);
+
+    timer::HwTimerConfig cfg;
+    cfg.resolutionHz = TIMER_HZ;
+    cfg.minTicks     = 5;
+
+    pulseTimer.begin(cfg);
+    pulseTimer.setCallback(&onPulse, nullptr);
+    pulseTimer.startOneShotTicks(STEP_TICKS);
+}
+
+void loop() {
+    // `pulseEdges` is a 32-bit volatile, safe to sample without a lock.
+    const uint32_t snapshot = pulseEdges;
+    (void)snapshot;
+}
+```
+
+### Timer API
+
+| Method | Description |
+| --- | --- |
+| `begin(cfg)` | Allocate/configure timer. `InvalidConfig` for `resolutionHz=0`, `AlreadyInitialized` if called twice. |
+| `setCallback(cb, ctx)` | Register ISR callback. `NotInitialized` if called before `begin`. |
+| `startOneShotTicks(ticks)` | Task-context arm. Counter resets to 0; alarm fires once at `ticks`. `InvalidTicks` if `ticks < cfg.minTicks`. |
+| `rearmFromIsr(ticks)` | ISR-safe re-arm. Schedules next alarm `ticks` ticks after the alarm that just fired (no counter read — `lastAlarmCount_` is cached from the alarm event data). |
+| `disarmFromIsr()` | ISR-safe disarm. Software gate at the trampoline drops any further user-callback invocation; does NOT call `gptimer_stop()` from ISR. |
+| `stop()` | Task-context full halt: stops the hardware counter AND clears the armed flag. |
+| `resolutionHz()` | Returns configured tick rate (0 before `begin`). |
+| `isArmed()` | True between any arm/rearm and the next fire/disarm. Backed by `std::atomic<bool>` for dual-core safety. |
+
+Important edge case: internal state now tracks **`started_` separately from `armed_`**. On ESP32 GPTimer, one-shot alarm consumption clears `armed_` but the hardware timer can still be running. `startOneShotTicks()` uses `started_` to decide whether it must call `gptimer_stop()` before re-starting, preventing `ESP_ERR_INVALID_STATE` on restart-after-fire flows.
+
+All non-const methods return `HwTimerStatus`; `Ok` is success. `drivers/hwtimer_fake.h` ships a header-only fake for host tests that honours the same one-shot semantics — `fire()` on a disarmed fake is silently dropped.
+
+## Critical section (`ungula/hal/sync/critical_section.h`)
+
+`CriticalSection` is a dual-core spinlock on ESP32 (`portMUX_TYPE`) and a no-op on host builds. Use it to guard tiny shared state touched by both task context and ISR callbacks.
+
+### Real-world use case — ISR/task shared counters
+
+```cpp
+#include <ungula/hal/sync/critical_section.h>
+
+namespace sync = ungula::hal::sync;
+
+sync::CriticalSection statsCs;
+volatile uint32_t edgeCount = 0;
+uint32_t processedCount = 0;
+
+void UNGULA_ISR_ATTR onEdge(void* /*ctx*/) {
+    sync::ScopedLock lock(statsCs);
+    edgeCount++;
+}
+
+void loop() {
+    uint32_t pending = 0;
+    {
+        sync::ScopedLock lock(statsCs);
+        pending = edgeCount;
+        edgeCount = 0;
+    }
+    processedCount += pending;
+}
+```
+
+### Critical section API
+
+| Symbol | Description |
+| --- | --- |
+| `CriticalSection::enter()` / `exit()` | Manual lock/unlock for tiny critical regions. |
+| `ScopedLock` | RAII guard; lock on construction, unlock on destruction. |
+
 ## I2C multiplexer (`ungula/hal/multiplexer/i_multiplexer.h`)
 
 Driver-agnostic interface for I2C bus multiplexers. The host project owns the underlying `I2cMaster`, the multiplexer driver borrows it, and downstream code calls `selectChannel(n)` before talking to a device wired to channel `n`.
@@ -418,7 +533,7 @@ In production this is exactly what `ungula::encoder::drivers::As5600Pwm` does in
 For low-latency consumers, `setSampleCallback()` registers a function the backend invokes from interrupt context every time a complete period is captured. After it lands, the host can stop polling — the callback runs on every frame.
 
 ```cpp
-#include <ungula/hal/gpio/gpio_access.h>      // for UNGULA_ISR_ATTR
+#include <ungula/hal/core/compiler_attrs.h>   // UNGULA_ISR_ATTR
 #include <ungula/hal/pwm_input/drivers/pwm_input.h>
 
 namespace pwm = ungula::hal::pwm_input;
@@ -566,6 +681,19 @@ lib_hal/
           platforms/
             can_esp32.cpp         # ESP-IDF TWAI driver wrapper
             can_default.cpp       # no-op stubs for desktop builds
+        sync/
+          critical_section.h      # cross-platform critical section + RAII lock
+          platforms/
+            critical_section_esp32.h   # portMUX-based spinlock
+            critical_section_default.h # host no-op
+        timer/
+          i_hwtimer.h             # hardware timer interface (one-shot + re-arm)
+          drivers/
+            hwtimer.h             # concrete timer, platform-dispatched
+            hwtimer_fake.h        # header-only fake for host tests
+          platforms/
+            hwtimer_esp32.cpp     # ESP32 GPTimer backend
+            hwtimer_default.cpp   # host stub backend
         multiplexer/
           i_multiplexer.h         # interface + cached selectChannel
           i_multiplexer.cpp       # base behaviour (cache, retry, logging)
@@ -598,6 +726,8 @@ lib_hal/
     test_uart.cpp                 # UART stub tests
     test_adc_manager.cpp          # AdcManager stub tests
     test_can.cpp                  # CAN stub tests
+    test_sync.cpp                 # CriticalSection + ScopedLock compile/behavior tests
+    test_hwtimer.cpp              # HwTimer default backend + HwTimerFake tests
     test_multiplexer.cpp          # IMultiplexer base + fake driver tests
     test_pwm_input.cpp            # PwmInput stub + PwmInputFake tests
     test_quadrature.cpp           # Decoder stub + DecoderFake tests

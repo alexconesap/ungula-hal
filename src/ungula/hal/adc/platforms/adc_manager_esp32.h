@@ -45,16 +45,16 @@
 namespace ungula::hal::adc
 {
 
-    enum class Attenuation : uint8_t {
+enum class Attenuation : uint8_t {
         DB_0 = 0, /// ~0–950 mV input range, best precision near 0 V
         DB_2_5 = 1, /// ~0–1.25 V
         DB_6 = 2, /// ~0–1.75 V
         DB_12 = 3, /// ~0–3.3 V (full-scale on a 3.3 V rail) — default
-    };
+};
 
-    enum class CaliScheme : uint8_t { None, CurveFitting, LineFitting };
+enum class CaliScheme : uint8_t { None, CurveFitting, LineFitting };
 
-    class AdcManager {
+class AdcManager {
     public:
         static constexpr size_t MAX_CHANNELS = UNGULA_HAL_MAX_ADC_CHANNELS;
         static constexpr size_t UNIT_COUNT = 2;
@@ -91,16 +91,16 @@ namespace ungula::hal::adc
 
     private:
         struct ChannelInfo {
-            uint8_t pin = 0;
-            adc_unit_t unit{};
-            adc_channel_t channel{};
-            adc_atten_t atten{};
-            bool configured = false;
+                uint8_t pin = 0;
+                adc_unit_t unit{};
+                adc_channel_t channel{};
+                adc_atten_t atten{};
+                bool configured = false;
         };
 
         struct CaliEntry {
-            adc_cali_handle_t handle = nullptr;
-            CaliScheme scheme = CaliScheme::None;
+                adc_cali_handle_t handle = nullptr;
+                CaliScheme scheme = CaliScheme::None;
         };
 
         ChannelInfo channels_[MAX_CHANNELS] = {};
@@ -118,6 +118,6 @@ namespace ungula::hal::adc
         static adc_atten_t toIdfAttenuation(Attenuation atten);
         static uint32_t fallbackFullScaleMv(adc_atten_t atten);
         static uint32_t rawToMvFallback(int raw, adc_atten_t atten);
-    };
+};
 
 } // namespace ungula::hal::adc

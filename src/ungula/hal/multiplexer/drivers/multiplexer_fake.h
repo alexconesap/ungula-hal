@@ -27,7 +27,7 @@
 namespace ungula::hal::multiplexer::drivers
 {
 
-    class MultiplexerFake final : public IMultiplexer {
+class MultiplexerFake final : public IMultiplexer {
     public:
         MultiplexerFake(const char *name = "fake", uint8_t address = 0x70)
                 : IMultiplexer(name, address)
@@ -36,24 +36,24 @@ namespace ungula::hal::multiplexer::drivers
 
         bool begin() override
         {
-            initiated_ = true;
-            isFunctional_ = beginResult_;
-            ++beginCallCount_;
-            return beginResult_;
+                initiated_ = true;
+                isFunctional_ = beginResult_;
+                ++beginCallCount_;
+                return beginResult_;
         }
 
         void restartBus() override
         {
-            ++restartCallCount_;
-            isFunctional_ = false;
-            currentChannel_ = 0xFF;
+                ++restartCallCount_;
+                isFunctional_ = false;
+                currentChannel_ = 0xFF;
         }
 
         bool isResponding() override
         {
-            ++isRespondingCallCount_;
-            isFunctional_ = isRespondingResult_;
-            return isRespondingResult_;
+                ++isRespondingCallCount_;
+                isFunctional_ = isRespondingResult_;
+                return isRespondingResult_;
         }
 
         // ---- Test knobs ----
@@ -61,80 +61,80 @@ namespace ungula::hal::multiplexer::drivers
         /// @brief Set the value `begin()` returns.
         void setBeginResult(bool ok)
         {
-            beginResult_ = ok;
+                beginResult_ = ok;
         }
 
         /// @brief Set the value `isResponding()` returns.
         void setIsRespondingResult(bool ok)
         {
-            isRespondingResult_ = ok;
+                isRespondingResult_ = ok;
         }
 
         /// @brief Make the next `failureCount` calls to
         /// `selectChannel_()` fail. Useful for retry tests.
         void failNextSelects(uint8_t failureCount)
         {
-            failuresRemaining_ = failureCount;
+                failuresRemaining_ = failureCount;
         }
 
         /// @brief Force every future `selectChannel_()` to fail until
         /// reset.
         void setSelectAlwaysFails(bool fail)
         {
-            selectAlwaysFails_ = fail;
+                selectAlwaysFails_ = fail;
         }
 
         // ---- Test inspectors ----
 
         uint8_t lastChannel() const
         {
-            return lastChannelRequested_;
+                return lastChannelRequested_;
         }
         uint32_t selectCallCount() const
         {
-            return selectCallCount_;
+                return selectCallCount_;
         }
         uint32_t selectFailureCount() const
         {
-            return selectFailureCount_;
+                return selectFailureCount_;
         }
         uint32_t beginCallCount() const
         {
-            return beginCallCount_;
+                return beginCallCount_;
         }
         uint32_t restartCallCount() const
         {
-            return restartCallCount_;
+                return restartCallCount_;
         }
         uint32_t isRespondingCallCount() const
         {
-            return isRespondingCallCount_;
+                return isRespondingCallCount_;
         }
 
         void resetCounters()
         {
-            selectCallCount_ = 0;
-            selectFailureCount_ = 0;
-            beginCallCount_ = 0;
-            restartCallCount_ = 0;
-            isRespondingCallCount_ = 0;
-            failuresRemaining_ = 0;
-            selectAlwaysFails_ = false;
+                selectCallCount_ = 0;
+                selectFailureCount_ = 0;
+                beginCallCount_ = 0;
+                restartCallCount_ = 0;
+                isRespondingCallCount_ = 0;
+                failuresRemaining_ = 0;
+                selectAlwaysFails_ = false;
         }
 
     protected:
         bool selectChannel_(uint8_t channel) override
         {
-            ++selectCallCount_;
-            lastChannelRequested_ = channel;
-            if (selectAlwaysFails_ || failuresRemaining_ > 0) {
-                if (failuresRemaining_ > 0) {
-                    --failuresRemaining_;
+                ++selectCallCount_;
+                lastChannelRequested_ = channel;
+                if (selectAlwaysFails_ || failuresRemaining_ > 0) {
+                        if (failuresRemaining_ > 0) {
+                                --failuresRemaining_;
+                        }
+                        ++selectFailureCount_;
+                        return false;
                 }
-                ++selectFailureCount_;
-                return false;
-            }
-            return true;
+                return true;
         }
 
     private:
@@ -149,6 +149,6 @@ namespace ungula::hal::multiplexer::drivers
         uint32_t beginCallCount_ = 0;
         uint32_t restartCallCount_ = 0;
         uint32_t isRespondingCallCount_ = 0;
-    };
+};
 
 } // namespace ungula::hal::multiplexer::drivers

@@ -42,16 +42,16 @@
 namespace ungula::hal::pwm_input
 {
 
-    /// @brief ISR-context callback fired once per complete PWM period.
-    ///
-    /// The backend invokes it after the rising-edge handler has updated
-    /// the high-time + period state, so the callee can read
-    /// `lastHighTimeUs()` / `lastPeriodUs()` and see consistent values.
-    /// `ctx` is the opaque pointer the caller supplied to
-    /// `setSampleCallback()`.
-    using SampleCallback = void (*)(void *ctx);
+/// @brief ISR-context callback fired once per complete PWM period.
+///
+/// The backend invokes it after the rising-edge handler has updated
+/// the high-time + period state, so the callee can read
+/// `lastHighTimeUs()` / `lastPeriodUs()` and see consistent values.
+/// `ctx` is the opaque pointer the caller supplied to
+/// `setSampleCallback()`.
+using SampleCallback = void (*)(void *ctx);
 
-    class IPwmInput {
+class IPwmInput {
     public:
         virtual ~IPwmInput() = default;
 
@@ -97,6 +97,6 @@ namespace ungula::hal::pwm_input
 
     protected:
         IPwmInput() = default;
-    };
+};
 
 } // namespace ungula::hal::pwm_input

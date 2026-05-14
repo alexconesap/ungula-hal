@@ -35,13 +35,13 @@
 namespace ungula::hal::multiplexer
 {
 
-    /// @brief Number of bus-restart retries inside `selectChannel()`.
-    /// Drivers may raise this; the base method retries this many times
-    /// before giving up.
-    constexpr uint8_t SELECT_RETRY_COUNT = 3;
+/// @brief Number of bus-restart retries inside `selectChannel()`.
+/// Drivers may raise this; the base method retries this many times
+/// before giving up.
+constexpr uint8_t SELECT_RETRY_COUNT = 3;
 
-    /// @brief Abstract multiplexer. Drivers implement the platform hooks.
-    class IMultiplexer {
+/// @brief Abstract multiplexer. Drivers implement the platform hooks.
+class IMultiplexer {
     public:
         IMultiplexer() = delete;
 
@@ -83,34 +83,34 @@ namespace ungula::hal::multiplexer
         /// the first successful `selectChannel()`.
         uint8_t getCurrentChannel() const
         {
-            return currentChannel_;
+                return currentChannel_;
         }
 
         /// @brief Short name passed at construction. Useful in logs.
         const char *getName() const
         {
-            return name_;
+                return name_;
         }
 
         /// @brief 7-bit address passed at construction.
         uint8_t getAddress() const
         {
-            return i2cAddress_;
+                return i2cAddress_;
         }
 
         // ---- Optional logging (off by default) ----
 
         void enableLogging()
         {
-            loggingEnabled_ = true;
+                loggingEnabled_ = true;
         }
         void disableLogging()
         {
-            loggingEnabled_ = false;
+                loggingEnabled_ = false;
         }
         bool isLoggingEnabled() const
         {
-            return loggingEnabled_;
+                return loggingEnabled_;
         }
 
     protected:
@@ -124,7 +124,7 @@ namespace ungula::hal::multiplexer
         // the shared toggle without re-implementing the check.
         bool shouldLog() const
         {
-            return loggingEnabled_;
+                return loggingEnabled_;
         }
 
         /// @brief Per-instance log helpers. Each prepends the prefix
@@ -155,6 +155,6 @@ namespace ungula::hal::multiplexer
 
     private:
         bool loggingEnabled_ = false;
-    };
+};
 
 } // namespace ungula::hal::multiplexer

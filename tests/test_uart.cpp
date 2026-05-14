@@ -9,63 +9,63 @@
 namespace
 {
 
-    using ungula::hal::uart::Uart;
+using ungula::hal::uart::Uart;
 
-    TEST(UartStubTest, ConstructorSetsPort)
-    {
+TEST(UartStubTest, ConstructorSetsPort)
+{
         Uart uart(2);
         EXPECT_EQ(uart.port(), 2);
-    }
+}
 
-    TEST(UartStubTest, BeginSucceeds)
-    {
+TEST(UartStubTest, BeginSucceeds)
+{
         Uart uart(0);
         EXPECT_TRUE(uart.begin(115200, 17, 16));
-    }
+}
 
-    TEST(UartStubTest, BeginTwiceFails)
-    {
+TEST(UartStubTest, BeginTwiceFails)
+{
         Uart uart(0);
         EXPECT_TRUE(uart.begin(115200, 17, 16));
         EXPECT_FALSE(uart.begin(115200, 17, 16));
-    }
+}
 
-    TEST(UartStubTest, WriteReturnsLengthAfterBegin)
-    {
+TEST(UartStubTest, WriteReturnsLengthAfterBegin)
+{
         Uart uart(0);
         uart.begin(115200, 17, 16);
         uint8_t data[] = { 0x01, 0x02, 0x03 };
         EXPECT_EQ(uart.write(data, sizeof(data)), 3);
-    }
+}
 
-    TEST(UartStubTest, WriteReturnsErrorBeforeBegin)
-    {
+TEST(UartStubTest, WriteReturnsErrorBeforeBegin)
+{
         Uart uart(0);
         uint8_t data[] = { 0x01 };
         EXPECT_EQ(uart.write(data, sizeof(data)), -1);
-    }
+}
 
-    TEST(UartStubTest, ReadReturnsZeroBytesAfterBegin)
-    {
+TEST(UartStubTest, ReadReturnsZeroBytesAfterBegin)
+{
         Uart uart(0);
         uart.begin(115200, 17, 16);
         uint8_t buf[8] = {};
         EXPECT_EQ(uart.read(buf, sizeof(buf), 100), 0);
-    }
+}
 
-    TEST(UartStubTest, ReadReturnsErrorBeforeBegin)
-    {
+TEST(UartStubTest, ReadReturnsErrorBeforeBegin)
+{
         Uart uart(0);
         uint8_t buf[8] = {};
         EXPECT_EQ(uart.read(buf, sizeof(buf), 100), -1);
-    }
+}
 
-    TEST(UartStubTest, FlushDoesNotCrash)
-    {
+TEST(UartStubTest, FlushDoesNotCrash)
+{
         Uart uart(0);
         uart.begin(115200, 17, 16);
         uart.flush();
         uart.flushInput();
-    }
+}
 
 } // namespace

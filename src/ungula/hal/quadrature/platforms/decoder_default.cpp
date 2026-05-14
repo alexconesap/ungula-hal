@@ -9,39 +9,39 @@
 namespace ungula::hal::quadrature::drivers
 {
 
-    Decoder::Decoder() = default;
-    Decoder::~Decoder() = default;
+Decoder::Decoder() = default;
+Decoder::~Decoder() = default;
 
-    bool Decoder::begin(uint8_t pinA, uint8_t pinB, int32_t initialCount)
-    {
+bool Decoder::begin(uint8_t pinA, uint8_t pinB, int32_t initialCount)
+{
         if (installed_) {
-            return false;
+                return false;
         }
         pinA_ = pinA;
         pinB_ = pinB;
         count_ = initialCount;
         installed_ = true;
         return true;
-    }
+}
 
-    bool Decoder::stop()
-    {
+bool Decoder::stop()
+{
         installed_ = false;
         return true;
-    }
+}
 
-    int32_t Decoder::count() const
-    {
+int32_t Decoder::count() const
+{
         // Stub does not move on its own. Tests that need to script
         // counts should use `DecoderFake`.
         return count_;
-    }
+}
 
-    bool Decoder::reset(int32_t value)
-    {
+bool Decoder::reset(int32_t value)
+{
         count_ = value;
         return true;
-    }
+}
 
 } // namespace ungula::hal::quadrature::drivers
 

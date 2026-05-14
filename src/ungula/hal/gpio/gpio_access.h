@@ -8,7 +8,7 @@
 ///
 /// Dispatches to the platform-specific implementation based on build
 /// environment. The platform header provides all functions in the
-/// ungula::gpio namespace and defines the UNGULA_ISR_ATTR macro.
+/// ungula::gpio namespace.
 ///
 /// Usage:
 ///   #include <ungula/hal/gpio/gpio_access.h>   // cross-library
@@ -35,6 +35,8 @@
 /// GPIO access safe for timer ISRs.
 
 #include <stdint.h>
+
+#include "ungula/hal/core/compiler_attrs.h"
 
 #if defined(ESP_PLATFORM)
 #include "platforms/gpio_access_esp32.h"

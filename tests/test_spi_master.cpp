@@ -11,24 +11,24 @@
 namespace
 {
 
-    using ungula::hal::spi::SpiMaster;
+using ungula::hal::spi::SpiMaster;
 
-    TEST(SpiMasterStubTest, BeginSucceeds)
-    {
+TEST(SpiMasterStubTest, BeginSucceeds)
+{
         SpiMaster spi;
         EXPECT_TRUE(spi.begin(18, 19, 23, 5, 1000000, 1));
-    }
+}
 
-    TEST(SpiMasterStubTest, TransferFailsBeforeBegin)
-    {
+TEST(SpiMasterStubTest, TransferFailsBeforeBegin)
+{
         SpiMaster spi;
         uint8_t tx[] = { 0xAA };
         uint8_t rx[1] = {};
         EXPECT_FALSE(spi.transfer(tx, rx, 1));
-    }
+}
 
-    TEST(SpiMasterStubTest, TransferZerosRxBuffer)
-    {
+TEST(SpiMasterStubTest, TransferZerosRxBuffer)
+{
         SpiMaster spi;
         spi.begin(18, 19, 23, 5);
         uint8_t tx[] = { 0xAA, 0xBB };
@@ -36,45 +36,45 @@ namespace
         EXPECT_TRUE(spi.transfer(tx, rx, 2));
         EXPECT_EQ(rx[0], 0);
         EXPECT_EQ(rx[1], 0);
-    }
+}
 
-    TEST(SpiMasterStubTest, WriteSucceedsAfterBegin)
-    {
+TEST(SpiMasterStubTest, WriteSucceedsAfterBegin)
+{
         SpiMaster spi;
         spi.begin(18, 19, 23, 5);
         uint8_t data[] = { 0x06, 0x08 };
         EXPECT_TRUE(spi.write(data, sizeof(data)));
-    }
+}
 
-    TEST(SpiMasterStubTest, ReadZerosBuffer)
-    {
+TEST(SpiMasterStubTest, ReadZerosBuffer)
+{
         SpiMaster spi;
         spi.begin(18, 19, 23, 5);
         uint8_t buf[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
         EXPECT_TRUE(spi.read(buf, sizeof(buf)));
         for (auto b : buf) {
-            EXPECT_EQ(b, 0);
+                EXPECT_EQ(b, 0);
         }
-    }
+}
 
-    TEST(SpiMasterStubTest, WriteReadZerosRxPortion)
-    {
+TEST(SpiMasterStubTest, WriteReadZerosRxPortion)
+{
         SpiMaster spi;
         spi.begin(18, 19, 23, 5);
         uint8_t cmd[] = { 0x10 };
         uint8_t rx[3] = { 0xFF, 0xFF, 0xFF };
         EXPECT_TRUE(spi.writeRead(cmd, 1, rx, 3));
         for (auto b : rx) {
-            EXPECT_EQ(b, 0);
+                EXPECT_EQ(b, 0);
         }
-    }
+}
 
-    TEST(SpiMasterStubTest, NullRxDoesNotCrash)
-    {
+TEST(SpiMasterStubTest, NullRxDoesNotCrash)
+{
         SpiMaster spi;
         spi.begin(18, 19, 23, 5);
         uint8_t tx[] = { 0x01 };
         EXPECT_TRUE(spi.transfer(tx, nullptr, 1));
-    }
+}
 
 } // namespace

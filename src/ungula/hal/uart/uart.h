@@ -16,17 +16,17 @@
 namespace ungula::hal::uart
 {
 
-    /// Default RX ring buffer size (bytes).
-    constexpr uint16_t DEFAULT_RX_BUF = 256;
+/// Default RX ring buffer size (bytes).
+constexpr uint16_t DEFAULT_RX_BUF = 256;
 
-    /// Default TX ring buffer size (0 = blocking writes, no ring buffer).
-    constexpr uint16_t DEFAULT_TX_BUF = 0;
+/// Default TX ring buffer size (0 = blocking writes, no ring buffer).
+constexpr uint16_t DEFAULT_TX_BUF = 0;
 
-    /// @brief UART port wrapper.
-    ///
-    /// Owns the driver for a single hardware UART port. Destructor uninstalls it.
-    /// Non-copyable — one owner per physical port.
-    class Uart {
+/// @brief UART port wrapper.
+///
+/// Owns the driver for a single hardware UART port. Destructor uninstalls it.
+/// Non-copyable — one owner per physical port.
+class Uart {
     public:
         /// @param portNumber Hardware UART peripheral index (e.g. 0, 1, or 2 on ESP32).
         explicit Uart(uint8_t portNumber);
@@ -42,8 +42,8 @@ namespace ungula::hal::uart
         /// @param rxBufSize RX ring buffer in bytes.
         /// @param txBufSize TX ring buffer in bytes (0 = blocking writes).
         /// @return true on success, false if already installed or driver error.
-        bool begin(uint32_t baudRate, uint8_t txPin, uint8_t rxPin, uint16_t rxBufSize = DEFAULT_RX_BUF,
-                   uint16_t txBufSize = DEFAULT_TX_BUF);
+        bool begin(uint32_t baudRate, uint8_t txPin, uint8_t rxPin,
+                   uint16_t rxBufSize = DEFAULT_RX_BUF, uint16_t txBufSize = DEFAULT_TX_BUF);
 
         /// @brief Transmit bytes. Blocks until data is in the TX FIFO/ring buffer.
         /// @return Number of bytes written, or -1 on error.
@@ -65,12 +65,12 @@ namespace ungula::hal::uart
         /// @brief Hardware peripheral index passed at construction.
         uint8_t port() const
         {
-            return port_;
+                return port_;
         }
 
     private:
         uint8_t port_;
         bool installed_ = false;
-    };
+};
 
 } // namespace ungula::hal::uart

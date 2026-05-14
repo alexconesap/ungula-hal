@@ -31,3 +31,10 @@
 
 // I2C multiplexer interface (drivers in ungula/hal/multiplexer/drivers/)
 #include "ungula/hal/multiplexer/i_multiplexer.h"
+
+// Hardware timer (one-shot / variable-period alarm with ISR re-arm)
+#include "ungula/hal/timer/i_hwtimer.h"
+#include "ungula/hal/timer/drivers/hwtimer.h"
+
+// Critical section (dual-core spinlock on ESP32, no-op on host)
+#include "ungula/hal/sync/critical_section.h"

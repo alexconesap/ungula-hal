@@ -17,7 +17,7 @@
 namespace ungula::hal::pwm_input::drivers
 {
 
-    class PwmInput final : public IPwmInput {
+class PwmInput final : public IPwmInput {
     public:
         PwmInput();
         ~PwmInput() override;
@@ -31,7 +31,7 @@ namespace ungula::hal::pwm_input::drivers
         uint32_t sampleAgeUs() const override;
         uint8_t pin() const override
         {
-            return pin_;
+                return pin_;
         }
 
         void setSampleCallback(SampleCallback cb, void *ctx) override;
@@ -41,6 +41,6 @@ namespace ungula::hal::pwm_input::drivers
         uint8_t pin_ = 0;
         // Opaque per-platform state. Lives at file scope inside each
         // platform .cpp; the public class just tracks lifecycle.
-    };
+};
 
 } // namespace ungula::hal::pwm_input::drivers

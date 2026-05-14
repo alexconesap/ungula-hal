@@ -17,7 +17,7 @@
 namespace ungula::hal::quadrature::drivers
 {
 
-    class Decoder final : public IDecoder {
+class Decoder final : public IDecoder {
     public:
         Decoder();
         ~Decoder() override;
@@ -29,11 +29,11 @@ namespace ungula::hal::quadrature::drivers
 
         uint8_t pinA() const override
         {
-            return pinA_;
+                return pinA_;
         }
         uint8_t pinB() const override
         {
-            return pinB_;
+                return pinB_;
         }
 
     private:
@@ -42,6 +42,6 @@ namespace ungula::hal::quadrature::drivers
         uint8_t pinB_ = 0xFF;
         mutable int32_t count_ = 0; // mutable so const accessor on host can latch hardware state
         void *unit_ = nullptr;
-    };
+};
 
 } // namespace ungula::hal::quadrature::drivers

@@ -10,25 +10,26 @@
 namespace ungula::hal::uart
 {
 
-    static constexpr uint32_t TX_FLUSH_TIMEOUT_MS = 100;
-    static constexpr int UART_PIN_UNUSED = -1;
+static constexpr uint32_t TX_FLUSH_TIMEOUT_MS = 100;
+static constexpr int UART_PIN_UNUSED = -1;
 
-    Uart::Uart(uint8_t portNumber)
-            : port_(portNumber)
-    {
-    }
+Uart::Uart(uint8_t portNumber)
+        : port_(portNumber)
+{
+}
 
-    Uart::~Uart()
-    {
+Uart::~Uart()
+{
         if (installed_) {
-            uart_driver_delete(static_cast<uart_port_t>(port_));
+                uart_driver_delete(static_cast<uart_port_t>(port_));
         }
-    }
+}
 
-    bool Uart::begin(uint32_t baudRate, uint8_t txPin, uint8_t rxPin, uint16_t rxBufSize, uint16_t txBufSize)
-    {
+bool Uart::begin(uint32_t baudRate, uint8_t txPin, uint8_t rxPin, uint16_t rxBufSize,
+                 uint16_t txBufSize)
+{
         if (installed_) {
-            return false;
+                return false;
         }
 
         uart_config_t config = {};
@@ -42,49 +43,50 @@ namespace ungula::hal::uart
         auto port = static_cast<uart_port_t>(port_);
 
         if (uart_param_config(port, &config) != ESP_OK) {
-            return false;
+                return false;
         }
         if (uart_set_pin(port, txPin, rxPin, UART_PIN_UNUSED, UART_PIN_UNUSED) != ESP_OK) {
-            return false;
+                return false;
         }
         if (uart_driver_install(port, rxBufSize, txBufSize, 0, nullptr, 0) != ESP_OK) {
-            return false;
+                return false;
         }
 
         installed_ = true;
         return true;
-    }
+}
 
-    int32_t Uart::write(const uint8_t *data, size_t length)
-    {
+int32_t Uart::write(const uint8_t *data, size_t length)
+{
         if (!installed_) {
-            return -1;
+                return -1;
         }
         return uart_write_bytes(static_cast<uart_port_t>(port_), data, length);
-    }
+}
 
-    int32_t Uart::read(uint8_t *buffer, size_t maxLength, uint32_t timeoutMs)
-    {
+int32_t Uart::read(uint8_t *buffer, size_t maxLength, uint32_t timeoutMs)
+{
         if (!installed_) {
-            return -1;
+                return -1;
         }
         TickType_t ticks = (timeoutMs == 0) ? 0 : pdMS_TO_TICKS(timeoutMs);
         return uart_read_bytes(static_cast<uart_port_t>(port_), buffer, maxLength, ticks);
-    }
+}
 
-    void Uart::flush()
-    {
+void Uart::flush()
+{
         if (installed_) {
-            uart_wait_tx_done(static_cast<uart_port_t>(port_), pdMS_TO_TICKS(TX_FLUSH_TIMEOUT_MS));
+                uart_wait_tx_done(static_cast<uart_port_t>(port_),
+                                  pdMS_TO_TICKS(TX_FLUSH_TIMEOUT_MS));
         }
-    }
+}
 
-    void Uart::flushInput()
-    {
+void Uart::flushInput()
+{
         if (installed_) {
-            uart_flush_input(static_cast<uart_port_t>(port_));
+                uart_flush_input(static_cast<uart_port_t>(port_));
         }
-    }
+}
 
 } // namespace ungula::hal::uart
 

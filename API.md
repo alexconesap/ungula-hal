@@ -4,6 +4,18 @@ Embedded C++17 hardware abstraction layer (HAL) for ESP32-class MCUs. Wraps GPIO
 
 This library is the only place direct Arduino / vendor APIs are allowed. Everything else in the project must call the symbols documented here.
 
+## Platform support
+
+Currently supported production backend:
+
+- ESP32
+
+Test-only backend:
+
+- default/fake backend for host tests
+
+The default backend is not suitable for production MCU targets. New MCU targets must provide platform-specific implementations for timer and synchronization primitives before being used in production.
+
 ---
 
 ## Usage
@@ -193,6 +205,81 @@ void sendCommand(uint32_t motorId, const uint8_t* payload, uint8_t len) {
 
 When to use this: any CAN 2.0 protocol (servo motors, OBD-II, J1939, custom). One `Can` per physical controller — class is non-copyable. Higher-level protocol parsing belongs in a consumer library.
 
+### Use case: variable-period hardware timer ISR
+
+```cpp
+#include <ungula/hal/gpio/gpio_access.h>
+#include <ungula/hal/sync/critical_section.h>
+#include <ungula/hal/timer/drivers/hwtimer.h>
+
+namespace gpio = ungula::hal::gpio;
+namespace sync = ungula::hal::sync;
+namespace timer = ungula::hal::timer;
+
+constexpr uint8_t STEP_PIN = 18;
+constexpr uint32_t TIMER_RESOLUTION_HZ = 1'000'000;
+constexpr uint32_t STEP_HALF_PERIOD_TICKS = 400;
+
+timer::drivers::HwTimer pulseTimer;
+sync::CriticalSection pulseCs;
+volatile uint32_t edgeCount = 0;
+
+void UNGULA_ISR_ATTR onPulse(void* /*ctx*/) {
+    // Toggle the step pin from the ISR. Avoid RAII / ScopedLock here —
+    // pulse ISRs should hold no locks; use atomics or volatile.
+    gpio::toggle(STEP_PIN);
+    edgeCount++;
+    // Schedule the next edge. Returning Ok keeps the train going.
+    pulseTimer.rearmFromIsr(STEP_HALF_PERIOD_TICKS);
+}
+
+void setup() {
+    gpio::configOutput(STEP_PIN);
+    gpio::setLow(STEP_PIN);
+
+    timer::HwTimerConfig cfg;
+    cfg.resolutionHz = TIMER_RESOLUTION_HZ;
+    cfg.minTicks     = 5;
+
+    pulseTimer.begin(cfg);
+    pulseTimer.setCallback(&onPulse, nullptr);
+    pulseTimer.startOneShotTicks(STEP_HALF_PERIOD_TICKS);
+}
+
+void loop() {}
+```
+
+When to use this: deterministic pulse timing where the next alarm interval may change at every shot (motion engines, software DDS, bit-banged protocols). The timer is **true one-shot** — `startOneShotTicks()` fires the callback once, and the ISR must call `rearmFromIsr()` to keep going. At the last pulse of a move, call `disarmFromIsr()` from the ISR (or `stop()` from task context) to guarantee no further alarms.
+
+### Use case: protect ISR/task shared counters with `CriticalSection`
+
+```cpp
+#include <ungula/hal/sync/critical_section.h>
+
+namespace sync = ungula::hal::sync;
+
+sync::CriticalSection statsCs;
+volatile uint32_t isrCounter = 0;
+uint32_t processedCounter = 0;
+
+void UNGULA_ISR_ATTR onEvent(void* /*ctx*/) {
+    sync::ScopedLock lock(statsCs);
+    isrCounter++;
+}
+
+void loop() {
+    uint32_t pending = 0;
+    {
+        sync::ScopedLock lock(statsCs);
+        pending = isrCounter;
+        isrCounter = 0;
+    }
+    processedCounter += pending;
+}
+```
+
+When to use this: tiny shared state updates across ISR and task context. Keep locked regions short and side-effect free (no logging, no I/O, no allocation).
+
 ### Use case: I2C bus multiplexer (TCA9548A)
 
 ```cpp
@@ -291,6 +378,8 @@ Public namespaces:
 - `ungula::hal::spi` — `SpiMaster` class
 - `ungula::hal::uart` — `Uart` class, `DEFAULT_RX_BUF`, `DEFAULT_TX_BUF`
 - `ungula::hal::can` — `Can` class, `CanFrame`, `BITRATE_*` constants
+- `ungula::hal::sync` — `CriticalSection`, `ScopedLock`
+- `ungula::hal::timer` — `IsrTimerCallback`, `HwTimerConfig`, `HwTimerStatus`, `IHwTimer`; concrete timer under `ungula::hal::timer::drivers` (`HwTimer`, `HwTimerFake`)
 - `ungula::hal::multiplexer` — `IMultiplexer` interface; concrete drivers under `ungula::hal::multiplexer::drivers` (`MultiplexerTCA9548`, `MultiplexerFake`)
 - `ungula::hal::pwm_input` — `IPwmInput` interface; concrete + fake under `ungula::hal::pwm_input::drivers` (`PwmInput`, `PwmInputFake`)
 - `ungula::hal::quadrature` — `IDecoder` interface; concrete + fake under `ungula::hal::quadrature::drivers` (`Decoder`, `DecoderFake`)
@@ -325,9 +414,11 @@ using GpioIsrHandler = void (*)(void*);
 
 ISR callback signature. Place the function with `UNGULA_ISR_ATTR` so it lands in IRAM and survives flash operations.
 
-### `UNGULA_ISR_ATTR`
+### `UNGULA_ISR_ATTR`  (`ungula/hal/core/compiler_attrs.h`)
 
-Preprocessor macro. On ESP32 expands to `IRAM_ATTR`; on the default backend expands to nothing. Apply to any function called from ISR context.
+Preprocessor macro. On ESP32 expands to `IRAM_ATTR` (forces the function into IRAM so it remains callable while flash is busy); on the default backend expands to nothing. Apply to any function called from ISR context — handlers, trampolines, helpers, inline callees.
+
+Single source of truth in `ungula/hal/core/compiler_attrs.h`. Subsystems that need ISR placement (gpio, timer, sync, future ones) include this directly so there is no cross-subsystem dependency just for the macro.
 
 ### `ungula::hal::adc::Attenuation`
 
@@ -386,6 +477,65 @@ Owning class for one CAN 2.0 controller. Non-copyable. `controller()` returns th
 Plain-old struct: 32-bit `id` (11- or 29-bit per `extendedId`), `remote` flag, `dlc` 0..8, `data[8]`.
 
 Bitrate constants in the same namespace: `BITRATE_25K`, `BITRATE_50K`, `BITRATE_100K`, `BITRATE_125K`, `BITRATE_250K`, `BITRATE_500K`, `BITRATE_800K`, `BITRATE_1M`.
+
+### `ungula::hal::sync::CriticalSection`
+
+Cross-platform critical section used to guard tiny shared state between ISR and task context.
+
+- ESP32 backend: `portMUX_TYPE` + `portENTER_CRITICAL_SAFE`/`portEXIT_CRITICAL_SAFE`.
+- Host backend: no-op stub (compile/test seam).
+
+### `ungula::hal::sync::ScopedLock`
+
+RAII guard for `CriticalSection`. Locks in constructor, unlocks in destructor.
+
+### `ungula::hal::timer::IsrTimerCallback`
+
+```cpp
+using IsrTimerCallback = void (*)(void* ctx);
+```
+
+ISR-context callback signature for timer alarm handlers. The callback runs in true interrupt context — must be IRAM-safe (`UNGULA_ISR_ATTR`), no logging / UART / I2C / SPI / blocking calls.
+
+### `ungula::hal::timer::HwTimerStatus`
+
+```cpp
+enum class HwTimerStatus : uint8_t {
+    Ok, NotInitialized, AlreadyInitialized, InvalidConfig,
+    InvalidTicks, BackendError, Unsupported, Busy,
+};
+```
+
+Returned by every non-const timer operation. Replaces boolean `bool` returns so the consumer can distinguish "wrong config" from "backend failure" from "called too early" without a separate error API.
+
+### `ungula::hal::timer::HwTimerConfig`
+
+Configuration struct for `IHwTimer::begin()`.
+
+```cpp
+struct HwTimerConfig {
+    uint32_t resolutionHz = 1'000'000;   // counter tick rate
+    uint32_t minTicks     = 5;           // lower bound on ticks args
+};
+```
+
+`autoReload` was removed in lib_hal 1.5.2 — the timer is true one-shot, and periodic behaviour is the caller's responsibility via `rearmFromIsr()` from inside the alarm callback. In lib_hal 1.5.3 the implementation was hardened: `disarmFromIsr()` no longer calls `gptimer_stop()` from ISR, the armed state is `std::atomic<bool>` (dual-core safe with a software gate inside the trampoline), and `rearmFromIsr` schedules the next alarm from a cached `lastAlarmCount_` instead of reading the counter register on every pulse.
+
+### `ungula::hal::timer::IHwTimer`
+
+Abstract hardware timer interface supporting true one-shot start and ISR-safe re-arm / disarm. See the "Public functions / methods" section below for the full contract.
+
+### `ungula::hal::timer::drivers::HwTimer`
+
+Concrete platform-dispatched timer. ESP32 backend wraps GPTimer with `auto_reload_on_alarm = false` so the one-shot contract holds at the hardware level; host backend is a structural stub for compile-only tests. The public header does not expose any ESP-IDF types — `gptimer_handle_t` is held internally as `void*`.
+
+### `ungula::hal::timer::drivers::HwTimerFake`
+
+Header-only fake. Models true one-shot semantics: `fire()` on a disarmed timer is dropped (silent no-op), so tests catch over-firing and stuck-armed bugs. Knobs: `fire()`, `fireMany(n)`, `isArmed()`, `lastArmedTicks()`. Counters: `beginCallCount`, `startCallCount`, `rearmCallCount`, `disarmCallCount`, `fireCallCount`, `firesDroppedWhileDisarmed`.
+
+Backend matrix for the concrete `HwTimer`:
+- ESP32: GPTimer with `auto_reload_on_alarm = false`. ISR trampoline lives in the platform `.cpp`; no ESP-IDF types reach the public header.
+- Host (default): structural stub. Tracks armed/disarmed state and returns sensible `HwTimerStatus` codes, but never fires the callback. Tests of consumer code that need the callback to fire deterministically must use `HwTimerFake`.
 
 ### `ungula::hal::multiplexer::IMultiplexer`
 
@@ -592,6 +742,51 @@ uint8_t controller() const;
 - **Failure behavior** — `bool` returns are `false` on failure; `int32_t` returns are `-1`. Never throws.
 - **Side effects** — owns the TWAI driver for the controller. Destructor stops + uninstalls it. Non-copyable.
 
+### `ungula::hal::sync::CriticalSection`
+
+```cpp
+void enter();
+void exit();
+```
+
+- **Purpose** — lock tiny ISR/task shared regions.
+- **Failure behavior** — no return value; lock operations are backend primitives.
+- **Usage notes** — keep critical regions minimal; prefer `ScopedLock` for exception-safe/early-return-safe unlock.
+
+### `ungula::hal::sync::ScopedLock`
+
+```cpp
+explicit ScopedLock(CriticalSection& cs);
+~ScopedLock();
+```
+
+- **Purpose** — RAII wrapper around `enter()`/`exit()`.
+- **Usage notes** — use block scope to define lock lifetime explicitly.
+
+### `ungula::hal::timer::IHwTimer`
+
+```cpp
+virtual HwTimerStatus begin(const HwTimerConfig& cfg) = 0;
+virtual HwTimerStatus setCallback(IsrTimerCallback cb, void* ctx) = 0;
+virtual HwTimerStatus startOneShotTicks(uint32_t ticks) = 0;
+virtual HwTimerStatus rearmFromIsr(uint32_t ticks) = 0;
+virtual HwTimerStatus disarmFromIsr() = 0;
+virtual HwTimerStatus stop() = 0;
+virtual uint32_t      resolutionHz() const = 0;
+virtual bool          isArmed()      const = 0;
+```
+
+- **`begin`** — allocate/configure timer resources. Returns `InvalidConfig` for `resolutionHz == 0`, `AlreadyInitialized` on a second call, `BackendError` on driver failure.
+- **`setCallback`** — register ISR callback. Returns `NotInitialized` if called before `begin`.
+- **`startOneShotTicks`** — task-context arm. Counter resets to 0; alarm fires once at `ticks`. Returns `InvalidTicks` if `ticks < cfg.minTicks`. After the alarm fires the timer is **disarmed** — call `rearmFromIsr()` inside the callback to keep going.
+- **`rearmFromIsr`** — ISR-safe re-arm. Sets the next alarm to fire `ticks` ticks after the alarm that just fired. The implementation tracks the last alarm count from the event data so no counter register read is needed per pulse.
+- **`disarmFromIsr`** — ISR-safe disarm. Guarantees no further user callback will be invoked until the next `startOneShotTicks` from task context. Implemented as a software gate at the trampoline boundary — does NOT call `gptimer_stop` from ISR; the natural one-shot (auto_reload=false) hardware behaviour means no pending hardware fire after the callback returns.
+- **`stop`** — task-context full halt. Stops the hardware counter AND clears the armed state.
+- **`resolutionHz`** — configured timer resolution; 0 before begin.
+- **`isArmed`** — true between any successful arm/rearm and the next alarm firing or any disarm/stop. Implemented as `std::atomic<bool>` so it's safe to read from any task or ISR on dual-core ESP32 — the same atomic backs the trampoline's "drop the fire if disarmed" gate.
+
+ESP32 implementation note: `started_` and `armed_` are intentionally separate. With GPTimer one-shot (`auto_reload_on_alarm=false`), the alarm can be consumed (`armed_ = false`) while the hardware timer FSM is still running. `startOneShotTicks()` keys its stop/restart sequence on `started_`, not `armed_`, to avoid restart failures (`ESP_ERR_INVALID_STATE`).
+
 ### `ungula::hal::pwm_input::IPwmInput`
 
 ```cpp
@@ -667,6 +862,8 @@ uint8_t port() const;
 2. **Operate (`loop()` / tasks):** call the unchecked read/write helpers, `readMv()`, `read()`/`write()`/`writeRead()`, `send()`/`receive()`, `lastHighTimeUs()`/`lastPeriodUs()`, `count()`. These do not allocate.
 3. **Shutdown:** destructors of `AdcManager`, `Uart`, `I2cMaster`, `SpiMaster`, `Can`, the concrete `PwmInput`, the concrete `Decoder` release their drivers. `AdcManager::deinit()` is idempotent — call it explicitly only when reordering matters. `IPwmInput::stop()` and `IDecoder::stop()` are idempotent for re-init flows.
 
+For timer/sync: initialize `IHwTimer` in boot, install callback once, start with `startOneShotTicks()`, and only use `rearmFromIsr()` from inside the callback to continue the pulse train. Call `disarmFromIsr()` at the last pulse so no further alarm can fire. Use `CriticalSection` for tiny shared state between callback and task — but prefer atomics/volatile inside the pulse ISR over RAII `ScopedLock`, since holding a lock across a step edge is a needless source of jitter.
+
 Calling unchecked GPIO functions on a pin you never configured is undefined behavior at the SoC level. Use the checked variants if there is any doubt.
 
 ---
@@ -687,6 +884,8 @@ Calling unchecked GPIO functions on a pin you never configured is undefined beha
 - **`toggle()` is not atomic.** Read-then-write. Synchronise externally if shared.
 - **`AdcManager::configure()` is not thread-safe.** Run it on a single context at boot. After configuration, `readMv()` / `readRaw()` are safe to call from multiple tasks (ESP-IDF oneshot reads are internally synchronised).
 - **`I2cMaster`, `SpiMaster`, `Uart`** are non-copyable. Treat each instance as exclusive owner of its port. Concurrent access from multiple tasks must be serialised by the caller (mutex around the bus).
+- **`IHwTimer` callback runs in ISR context.** No logging, no I2C/SPI/UART calls, no heap.
+- **Use `CriticalSection` only for short POD updates.** Keep lock windows tiny.
 - **ADC2 + Wi-Fi:** classic ESP32 ADC2 channels conflict with the Wi-Fi PHY. Prefer ADC1 (GPIO 32–39) when the radio is active.
 - **PWM (LEDC):** a finite number of channels is shared across the firmware. `configPwm()` is single-assignment per pin and consumes one channel; do not call it in a loop.
 - **No heap after `setup()`:** all `begin()` / `configure()` / `configPwm()` calls must happen during initialization.
@@ -700,6 +899,7 @@ Calling unchecked GPIO functions on a pin you never configured is undefined beha
 - `ungula::hal::gpio::detail::isValidGpio`, `ungula::hal::gpio::detail::isValidOutputGpio` — pin-bitmask helpers used by the checked variants. Not part of the surface.
 - `AdcManager` private members (`ChannelInfo`, `CaliEntry`, `channels_`, `units_`, `cali_`, `ensureUnit`, `ensureCalibration`, `findChannel`, `unitToIndex`, `attenToIndex`, `toIdfAttenuation`, `fallbackFullScaleMv`, `rawToMvFallback`) — implementation detail. Use only the public methods.
 - `I2cMaster::installed_`, `Uart::installed_`, `Uart::port_`, `I2cMaster::port_`, `SpiMaster::installed_`, `SpiMaster::devHandle_` — private state.
+- `timer/platforms/hwtimer_esp32.cpp` and `timer/platforms/hwtimer_default.cpp` — backend internals. Keep callers on `IHwTimer` / `drivers::HwTimer`.
 - Files under `src/ungula/hal/*/platforms/` — picked at compile time by the bridge headers (`gpio_access.h`, `adc_manager.h`) or by build glob (`i2c_master_*.cpp`, `spi_master_*.cpp`, `uart_*.cpp`). Do not include the platform headers directly; always go through the bridge header or `<ungula/hal.h>`.
 - `gpio_pwm_esp32.cpp` — owner of the LEDC channel pool. Do not poke it from outside.
 - `library.properties` lists `architectures=esp32`, but the default-platform stubs allow host unit-test builds. The stub backend is for tests only — its return values are not a contract.

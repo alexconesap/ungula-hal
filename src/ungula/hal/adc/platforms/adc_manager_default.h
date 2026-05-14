@@ -19,23 +19,23 @@
 namespace ungula::hal::adc
 {
 
-    enum class Attenuation : uint8_t {
+enum class Attenuation : uint8_t {
         DB_0 = 0,
         DB_2_5 = 1,
         DB_6 = 2,
         DB_12 = 3,
-    };
+};
 
-    enum class CaliScheme : uint8_t { None, CurveFitting, LineFitting };
+enum class CaliScheme : uint8_t { None, CurveFitting, LineFitting };
 
-    class AdcManager {
+class AdcManager {
     public:
         static constexpr size_t MAX_CHANNELS = UNGULA_HAL_MAX_ADC_CHANNELS;
 
         AdcManager() = default;
         ~AdcManager()
         {
-            deinit();
+                deinit();
         }
 
         AdcManager(const AdcManager &) = delete;
@@ -43,37 +43,37 @@ namespace ungula::hal::adc
 
         bool configure(uint8_t pin, Attenuation /*atten*/ = Attenuation::DB_12)
         {
-            if (findSlot(pin) != MAX_CHANNELS) {
-                return false; // single-assignment, match ESP32 contract.
-            }
-            if (count_ >= MAX_CHANNELS) {
-                return false;
-            }
-            pins_[count_] = pin;
-            configured_[count_] = true;
-            count_++;
-            return true;
+                if (findSlot(pin) != MAX_CHANNELS) {
+                        return false; // single-assignment, match ESP32 contract.
+                }
+                if (count_ >= MAX_CHANNELS) {
+                        return false;
+                }
+                pins_[count_] = pin;
+                configured_[count_] = true;
+                count_++;
+                return true;
         }
 
         bool readMv(uint8_t pin, uint32_t &mv) const
         {
-            mv = 0;
-            return findSlot(pin) != MAX_CHANNELS;
+                mv = 0;
+                return findSlot(pin) != MAX_CHANNELS;
         }
 
         bool readRaw(uint8_t pin, int &raw) const
         {
-            raw = 0;
-            return findSlot(pin) != MAX_CHANNELS;
+                raw = 0;
+                return findSlot(pin) != MAX_CHANNELS;
         }
 
         void deinit() noexcept
         {
-            for (size_t i = 0; i < MAX_CHANNELS; i++) {
-                pins_[i] = 0;
-                configured_[i] = false;
-            }
-            count_ = 0;
+                for (size_t i = 0; i < MAX_CHANNELS; i++) {
+                        pins_[i] = 0;
+                        configured_[i] = false;
+                }
+                count_ = 0;
         }
 
     private:
@@ -83,13 +83,13 @@ namespace ungula::hal::adc
 
         size_t findSlot(uint8_t pin) const
         {
-            for (size_t i = 0; i < count_; i++) {
-                if (configured_[i] && pins_[i] == pin) {
-                    return i;
+                for (size_t i = 0; i < count_; i++) {
+                        if (configured_[i] && pins_[i] == pin) {
+                                return i;
+                        }
                 }
-            }
-            return MAX_CHANNELS;
+                return MAX_CHANNELS;
         }
-    };
+};
 
 } // namespace ungula::hal::adc
