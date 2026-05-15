@@ -31,11 +31,11 @@ In your Arduino `.ino` file:
 Then include the component you need:
 
 ```cpp
-#include <ungula/hal/gpio/gpio_access.h>
+#include <ungula/hal/gpio/gpio.h>
 #include <ungula/hal/uart/uart.h>
 ```
 
-## GPIO (`ungula/hal/gpio/gpio_access.h`)
+## GPIO (`ungula/hal/gpio/gpio.h`)
 
 Two API layers for digital I/O:
 
@@ -69,7 +69,7 @@ Six inline wrappers over `read()` and `!read()` exist for readability. They carr
 Use these only when the compiler can inline the call (it will on all supported toolchains with optimisation enabled). At `-O0` they add a function-call round-trip with no other benefit over calling `read()` directly.
 
 ```cpp
-#include <ungula/hal/gpio/gpio_access.h>
+#include <ungula/hal/gpio/gpio.h>
 
 using namespace ungula::hal::gpio;
 
@@ -322,7 +322,7 @@ Bitrate constants exposed in the same namespace: `BITRATE_25K` … `BITRATE_1M`.
 ### Real-world use case — variable-period ISR pulse engine
 
 ```cpp
-#include <ungula/hal/gpio/gpio_access.h>
+#include <ungula/hal/gpio/gpio.h>
 #include <ungula/hal/timer/drivers/hwtimer.h>
 
 namespace gpio = ungula::hal::gpio;
@@ -649,11 +649,11 @@ lib_hal/
       hal.h                       # chain header for Arduino discovery
       hal/
         gpio/
-          gpio_access.h           # bridge header (dispatches to platform)
+          gpio.h           # bridge header (dispatches to platform)
           gpio_types.h
           platforms/
-            gpio_access_esp32.h   # ESP32: gpio_ll direct register access
-            gpio_access_default.h # no-op stubs for desktop builds
+            gpio_esp32.h   # ESP32: gpio_ll direct register access
+            gpio_default.h # no-op stubs for desktop builds
             gpio_pwm_esp32.cpp    # LEDC PWM implementation
         adc/
           adc_manager.h           # bridge header (dispatches to platform)

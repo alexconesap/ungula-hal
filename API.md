@@ -24,7 +24,7 @@ The default backend is not suitable for production MCU targets. New MCU targets 
 
 ```cpp
 #include <ungula/hal.h>
-#include <ungula/hal/gpio/gpio_access.h>
+#include <ungula/hal/gpio/gpio.h>
 
 constexpr uint8_t LED_PIN = 2;
 
@@ -44,7 +44,7 @@ When to use this: any digital output where the pin is known at compile time and 
 ### Use case: read a button with pull-up and a falling-edge interrupt
 
 ```cpp
-#include <ungula/hal/gpio/gpio_access.h>
+#include <ungula/hal/gpio/gpio.h>
 
 constexpr uint8_t BUTTON_PIN = 4;
 
@@ -69,7 +69,7 @@ When to use this: any input that must wake on edge events without polling. `inst
 ### Use case: PWM fan / LED dimming via LEDC
 
 ```cpp
-#include <ungula/hal/gpio/gpio_access.h>
+#include <ungula/hal/gpio/gpio.h>
 
 constexpr uint8_t FAN_PIN = 25;
 
@@ -208,7 +208,7 @@ When to use this: any CAN 2.0 protocol (servo motors, OBD-II, J1939, custom). On
 ### Use case: variable-period hardware timer ISR
 
 ```cpp
-#include <ungula/hal/gpio/gpio_access.h>
+#include <ungula/hal/gpio/gpio.h>
 #include <ungula/hal/sync/critical_section.h>
 #include <ungula/hal/timer/drivers/hwtimer.h>
 
@@ -900,7 +900,7 @@ Calling unchecked GPIO functions on a pin you never configured is undefined beha
 - `AdcManager` private members (`ChannelInfo`, `CaliEntry`, `channels_`, `units_`, `cali_`, `ensureUnit`, `ensureCalibration`, `findChannel`, `unitToIndex`, `attenToIndex`, `toIdfAttenuation`, `fallbackFullScaleMv`, `rawToMvFallback`) — implementation detail. Use only the public methods.
 - `I2cMaster::installed_`, `Uart::installed_`, `Uart::port_`, `I2cMaster::port_`, `SpiMaster::installed_`, `SpiMaster::devHandle_` — private state.
 - `timer/platforms/hwtimer_esp32.cpp` and `timer/platforms/hwtimer_default.cpp` — backend internals. Keep callers on `IHwTimer` / `drivers::HwTimer`.
-- Files under `src/ungula/hal/*/platforms/` — picked at compile time by the bridge headers (`gpio_access.h`, `adc_manager.h`) or by build glob (`i2c_master_*.cpp`, `spi_master_*.cpp`, `uart_*.cpp`). Do not include the platform headers directly; always go through the bridge header or `<ungula/hal.h>`.
+- Files under `src/ungula/hal/*/platforms/` — picked at compile time by the bridge headers (`gpio.h`, `adc_manager.h`) or by build glob (`i2c_master_*.cpp`, `spi_master_*.cpp`, `uart_*.cpp`). Do not include the platform headers directly; always go through the bridge header or `<ungula/hal.h>`.
 - `gpio_pwm_esp32.cpp` — owner of the LEDC channel pool. Do not poke it from outside.
 - `library.properties` lists `architectures=esp32`, but the default-platform stubs allow host unit-test builds. The stub backend is for tests only — its return values are not a contract.
 
@@ -924,7 +924,7 @@ These are notes for future work. Do not assume any of them exist.
 ## LLM usage rules
 
 - Use only the symbols documented above. If the task seems to need something else (e.g. SPI half-duplex with explicit timing, ADC continuous mode, UART parity), say so explicitly — do not invent a function.
-- Always go through the bridge headers (`<ungula/hal/gpio/gpio_access.h>`, `<ungula/hal/adc/adc_manager.h>`) or the chain header `<ungula/hal.h>`. Never include `platforms/*` directly.
+- Always go through the bridge headers (`<ungula/hal/gpio/gpio.h>`, `<ungula/hal/adc/adc_manager.h>`) or the chain header `<ungula/hal.h>`. Never include `platforms/*` directly.
 - Do not call `Arduino.h` APIs (`millis`, `digitalWrite`, `pinMode`, `Serial.print*`, `String`) anywhere. Use this library plus the project's `ungula::core::time` and `string_t`.
 - Configure pins / ports / channels in `setup()`. The hot path (`loop()` / tasks / ISRs) must not allocate or reconfigure.
 - Prefer the unchecked GPIO functions inside ISRs and timing-critical loops; prefer the checked variants when the pin number is from configuration.

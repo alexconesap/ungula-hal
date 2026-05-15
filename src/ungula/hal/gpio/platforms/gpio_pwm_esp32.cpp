@@ -6,7 +6,7 @@
 
 #if defined(ESP_PLATFORM)
 
-#include "gpio_access_esp32.h"
+#include "gpio_esp32.h"
 
 namespace ungula::hal::gpio
 {

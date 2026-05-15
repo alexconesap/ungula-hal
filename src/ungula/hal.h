@@ -12,7 +12,7 @@
 // Include this header to activate the library in Arduino
 
 // GPIO (digital I/O, PWM, interrupts)
-#include "ungula/hal/gpio/gpio_access.h"
+#include "ungula/hal/gpio/gpio.h"
 
 // ADC (oneshot with per-unit/attenuation calibration)
 #include "ungula/hal/adc/adc_manager.h"

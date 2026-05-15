@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <ungula/hal/gpio/gpio_access.h>
+#include <ungula/hal/gpio/gpio.h>
 
 #include <cstdint>
 

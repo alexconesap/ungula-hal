@@ -19,15 +19,25 @@ namespace ungula::hal::sync
 {
 
 /// RAII guard around a CriticalSection. Locks on construction, unlocks
-/// on destruction. Marked UNGULA_ISR_ATTR so it can be used inside ISR
-/// handlers on ESP32.
+/// on destruction.
+///
+/// ISR-safety note: the ctor/dtor are intentionally NOT tagged with
+/// `UNGULA_ISR_ATTR`. On ESP-IDF that macro expands to `IRAM_ATTR`
+/// which uses `__COUNTER__` to generate a unique section name —
+/// each translation unit that instantiates the inline body would
+/// claim a different section, and the linker rejects the resulting
+/// weak-symbol section mismatch. The ctor/dtor inline anyway; if the
+/// CALLER is in IRAM the inlined body lives in IRAM too, which is
+/// what callers actually need. The underlying `cs_.enter()` /
+/// `cs_.exit()` carry the attribute on their definitions where it
+/// matters.
 class ScopedLock {
     public:
-        explicit ScopedLock(CriticalSection &cs) UNGULA_ISR_ATTR : cs_(cs)
+        explicit ScopedLock(CriticalSection &cs) : cs_(cs)
         {
                 cs_.enter();
         }
-        ~ScopedLock() UNGULA_ISR_ATTR
+        ~ScopedLock()
         {
                 cs_.exit();
         }

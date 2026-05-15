@@ -11,7 +11,7 @@
 /// ungula::gpio namespace.
 ///
 /// Usage:
-///   #include <ungula/hal/gpio/gpio_access.h>   // cross-library
+///   #include <ungula/hal/gpio/gpio.h>   // cross-library
 ///
 /// Two API layers for digital I/O:
 ///
@@ -39,7 +39,7 @@
 #include "ungula/hal/core/compiler_attrs.h"
 
 #if defined(ESP_PLATFORM)
-#include "platforms/gpio_access_esp32.h"
+#include "platforms/gpio_esp32.h"
 #else
-#include "platforms/gpio_access_default.h"
+#include "platforms/gpio_default.h"
 #endif
