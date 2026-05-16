@@ -18,6 +18,39 @@ The default backend is not suitable for production MCU targets. New MCU targets 
 
 ---
 
+## LLM quick map
+
+- **Primary include**: `#include <ungula/hal.h>`.
+- **Arduino discovery include**: `#include <ungula_hal.h>` (forwarder only; host code should keep using the real header).
+- **Namespace root**: `ungula::hal`.
+- **Language baseline**: C++17 minimum (examples avoid post-C++17 requirements).
+- **Supported architectures**: `esp32`.
+- **Read order for coding agents**: `Usage` (working patterns) -> `API` (symbols/signatures) -> `Lifecycle`/`Error handling`/`Threading` notes in this file.
+
+### Use-case index
+
+- [Use case: blink an LED with checked configuration, unchecked hot-path writes](#use-case-blink-an-led-with-checked-configuration-unchecked-hot-path-writes)
+- [Use case: read a button with pull-up and a falling-edge interrupt](#use-case-read-a-button-with-pull-up-and-a-falling-edge-interrupt)
+- [Use case: PWM fan / LED dimming via LEDC](#use-case-pwm-fan-led-dimming-via-ledc)
+- [Use case: ADC read with calibration](#use-case-adc-read-with-calibration)
+- [Use case: I2C register read](#use-case-i2c-register-read)
+- [Use case: SPI device on SPI2](#use-case-spi-device-on-spi2)
+- [Use case: UART transmit/receive](#use-case-uart-transmitreceive)
+- [Use case: CAN 2.0 bus to a servo motor](#use-case-can-20-bus-to-a-servo-motor)
+- [Use case: variable-period hardware timer ISR](#use-case-variable-period-hardware-timer-isr)
+- [Use case: protect ISR/task shared counters with `CriticalSection`](#use-case-protect-isrtask-shared-counters-with-criticalsection)
+- [Use case: I2C bus multiplexer (TCA9548A)](#use-case-i2c-bus-multiplexer-tca9548a)
+- [Use case: PWM input capture (AS5600 in PWM-only mode)](#use-case-pwm-input-capture-as5600-in-pwm-only-mode)
+- [Use case: quadrature (A/B) decoder for an MT6701 in ABI mode](#use-case-quadrature-ab-decoder-for-an-mt6701-in-abi-mode)
+
+### LLM rules
+
+- Use only symbols and include paths documented in this file; do not infer extra public API from implementation files.
+- Prefer the use-case patterns here over ad-hoc rewrites; keep dependency wiring and lifecycle order identical unless the task explicitly changes API design.
+- Treat headers under `detail/`, `platform/`, and `platforms/` as internal unless this document calls them out as public.
+- If required behavior is missing from the documented API, report the gap explicitly instead of inventing new public symbols.
+
+
 ## Usage
 
 ### Use case: blink an LED with checked configuration, unchecked hot-path writes
@@ -217,7 +250,7 @@ namespace sync = ungula::hal::sync;
 namespace timer = ungula::hal::timer;
 
 constexpr uint8_t STEP_PIN = 18;
-constexpr uint32_t TIMER_RESOLUTION_HZ = 1'000'000;
+constexpr uint32_t TIMER_RESOLUTION_HZ = 1000000;
 constexpr uint32_t STEP_HALF_PERIOD_TICKS = 400;
 
 timer::drivers::HwTimer pulseTimer;
@@ -514,7 +547,7 @@ Configuration struct for `IHwTimer::begin()`.
 
 ```cpp
 struct HwTimerConfig {
-    uint32_t resolutionHz = 1'000'000;   // counter tick rate
+    uint32_t resolutionHz = 1000000;   // counter tick rate
     uint32_t minTicks     = 5;           // lower bound on ticks args
 };
 ```

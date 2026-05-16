@@ -2,11 +2,59 @@
 
 > **High-performance embedded C++ libraries for ESP32, STM32 and other MCUs** — hardware abstraction layer (GPIO, PWM, ADC, UART, I2C, SPI, CAN, multiplexer, PWM input capture, quadrature decoder, hardware timer, critical section).
 
+> **LLM usage note:** if this library is consumed from a coding AI workflow, explicitly point the agent to `API.md` first. `API.md` is the LLM-facing contract (public API + examples + constraints) and avoids wasting time/tokens scanning source files and this human-oriented README.
+
 Hardware abstraction layer for embedded projects. Provides platform-portable GPIO, PWM, ADC, UART, I2C, SPI, CAN 2.0, an I2C bus multiplexer interface, single-pin PWM input capture, quadrature (A/B) decoders, deterministic hardware timers, and ISR-safe critical sections.
 
 Each peripheral ships as a stable C++ interface in the `ungula::hal::` namespace, a concrete platform-dispatched driver, and (where appropriate) a header-only fake for host tests. Higher-level libraries (`lib_loadcell`, `lib_motor`, `lib_sd`, `lib_encoder`) compile against the abstractions, not the vendor SDKs.
 
 On ESP32, GPIO uses `gpio_ll` direct register writes (single-cycle, ISR-safe); UART, I2C, SPI and CAN wrap the matching ESP-IDF drivers; PWM input capture uses GPIO-edge ISR + `esp_timer`; the quadrature decoder uses the PCNT (pulse counter) peripheral with hardware 4× decoding. On other platforms (host builds), no-op stubs are provided so consumer code compiles and links for unit tests.
+
+## Table of Contents
+
+- [Platform support](#platform-support)
+- [Quick Start](#quick-start)
+- [GPIO (`ungula/hal/gpio/gpio.h`)](#gpio-ungulahalgpiogpioh)
+  - [Checked vs Uncheked](#checked-vs-uncheked)
+  - [Read helpers](#read-helpers)
+  - [Interrupts](#interrupts)
+- [ADC (`ungula/hal/adc/adc_manager.h`)](#adc-ungulahaladcadcmanagerh)
+  - [ADC API](#adc-api)
+  - [Notes](#notes)
+- [UART (`ungula/hal/uart/uart.h`)](#uart-ungulahaluartuarth)
+  - [UART API](#uart-api)
+- [I2C Master (`ungula/hal/i2c/i2c_master.h`)](#i2c-master-ungulahali2ci2cmasterh)
+  - [I2C API](#i2c-api)
+- [SPI Master (`ungula/hal/spi/spi_master.h`)](#spi-master-ungulahalspispimasterh)
+  - [SPI API](#spi-api)
+- [CAN bus (`ungula/hal/can/can.h`)](#can-bus-ungulahalcancanh)
+  - [Real-world use case — talk to a CAN servo motor](#real-world-use-case-talk-to-a-can-servo-motor)
+  - [Real-world use case — recover from bus-off after a wiring fault](#real-world-use-case-recover-from-bus-off-after-a-wiring-fault)
+  - [CAN API](#can-api)
+- [Hardware timer (`ungula/hal/timer/drivers/hwtimer.h`)](#hardware-timer-ungulahaltimerdrivershwtimerh)
+  - [Real-world use case — variable-period ISR pulse engine](#real-world-use-case-variable-period-isr-pulse-engine)
+  - [Timer API](#timer-api)
+- [Critical section (`ungula/hal/sync/critical_section.h`)](#critical-section-ungulahalsynccriticalsectionh)
+  - [Real-world use case — ISR/task shared counters](#real-world-use-case-isrtask-shared-counters)
+  - [Critical section API](#critical-section-api)
+- [I2C multiplexer (`ungula/hal/multiplexer/i_multiplexer.h`)](#i2c-multiplexer-ungulahalmultiplexerimultiplexerh)
+  - [Real-world use case — single TCA9548 with two encoders](#real-world-use-case-single-tca9548-with-two-encoders)
+  - [Real-world use case — two multiplexers on the same bus](#real-world-use-case-two-multiplexers-on-the-same-bus)
+  - [Multiplexer API](#multiplexer-api)
+  - [Multiplexer logging](#multiplexer-logging)
+- [PWM input capture (`ungula/hal/pwm_input/i_pwm_input.h`)](#pwm-input-capture-ungulahalpwminputipwminputh)
+  - [Real-world use case — read an AS5600 in PWM mode](#real-world-use-case-read-an-as5600-in-pwm-mode)
+  - [Real-world use case — per-frame ISR callback (no polling)](#real-world-use-case-per-frame-isr-callback-no-polling)
+  - [PWM input API](#pwm-input-api)
+- [Quadrature decoder (`ungula/hal/quadrature/i_decoder.h`)](#quadrature-decoder-ungulahalquadratureidecoderh)
+  - [Real-world use case — angle from an MT6701 in ABI mode](#real-world-use-case-angle-from-an-mt6701-in-abi-mode)
+  - [Real-world use case — homing to a known reference](#real-world-use-case-homing-to-a-known-reference)
+  - [Quadrature decoder API](#quadrature-decoder-api)
+- [Structure](#structure)
+- [Testing](#testing)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
+- [Arduino CLI symlink note (rarely relevant)](#arduino-cli-symlink-note-rarely-relevant)
 
 ## Platform support
 
@@ -329,7 +377,7 @@ namespace gpio = ungula::hal::gpio;
 namespace timer = ungula::hal::timer;
 
 constexpr uint8_t STEP_PIN = 18;
-constexpr uint32_t TIMER_HZ = 1'000'000;    // 1 tick = 1 us
+constexpr uint32_t TIMER_HZ = 1000000;    // 1 tick = 1 us
 constexpr uint32_t STEP_TICKS = 500;        // 500 us half-period
 
 timer::drivers::HwTimer pulseTimer;
