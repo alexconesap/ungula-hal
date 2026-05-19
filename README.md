@@ -4,6 +4,8 @@
 
 > **LLM usage note:** if this library is consumed from a coding AI workflow, explicitly point the agent to `API.md` first. `API.md` is the LLM-facing contract (public API + examples + constraints) and avoids wasting time/tokens scanning source files and this human-oriented README.
 
+> **Warning - Active Development:** This library is under active architecture work to support multiple projects in parallel. Its structure is not finalized yet and may change without notice while this work is in progress. Updates are currently frequent (often daily). Target for structural freeze and stable `v1.0.0`: **June 2026**.
+
 Hardware abstraction layer for embedded projects. Provides platform-portable GPIO, PWM, ADC, UART, I2C, SPI, CAN 2.0, an I2C bus multiplexer interface, single-pin PWM input capture, quadrature (A/B) decoders, deterministic hardware timers, and ISR-safe critical sections.
 
 Each peripheral ships as a stable C++ interface in the `ungula::hal::` namespace, a concrete platform-dispatched driver, and (where appropriate) a header-only fake for host tests. Higher-level libraries (`lib_loadcell`, `lib_motor`, `lib_sd`, `lib_encoder`) compile against the abstractions, not the vendor SDKs.
@@ -12,6 +14,7 @@ On ESP32, GPIO uses `gpio_ll` direct register writes (single-cycle, ISR-safe); U
 
 ## Table of Contents
 
+- [C++ Compatibility](#c-compatibility)
 - [Platform support](#platform-support)
 - [Quick Start](#quick-start)
 - [GPIO (`ungula/hal/gpio/gpio.h`)](#gpio-ungulahalgpiogpioh)
@@ -55,6 +58,12 @@ On ESP32, GPIO uses `gpio_ll` direct register writes (single-cycle, ISR-safe); U
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
 - [Arduino CLI symlink note (rarely relevant)](#arduino-cli-symlink-note-rarely-relevant)
+
+## C++ Compatibility
+
+- **Own source minimum**: `C++17`.
+- **Effective minimum for consumers**: `C++17`.
+- **Dependency impact**: None (no declared internal dependencies).
 
 ## Platform support
 

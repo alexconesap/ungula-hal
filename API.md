@@ -23,7 +23,9 @@ The default backend is not suitable for production MCU targets. New MCU targets 
 - **Primary include**: `#include <ungula/hal.h>`.
 - **Arduino discovery include**: `#include <ungula_hal.h>` (forwarder only; host code should keep using the real header).
 - **Namespace root**: `ungula::hal`.
-- **Language baseline**: C++17 minimum (examples avoid post-C++17 requirements).
+- **Own source minimum**: `C++17`.
+- **Effective minimum for consumers**: `C++17`.
+- **Dependency impact**: None (no declared internal dependencies).
 - **Supported architectures**: `esp32`.
 - **Read order for coding agents**: `Usage` (working patterns) -> `API` (symbols/signatures) -> `Lifecycle`/`Error handling`/`Threading` notes in this file.
 
