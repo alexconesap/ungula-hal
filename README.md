@@ -428,6 +428,8 @@ Important edge case: internal state now tracks **`started_` separately from `arm
 
 All non-const methods return `HwTimerStatus`; `Ok` is success. `drivers/hwtimer_fake.h` ships a header-only fake for host tests that honours the same one-shot semantics — `fire()` on a disarmed fake is silently dropped.
 
+ISR-rearm path on ESP32 was rewritten in 1.5.7 to call the lockless `timer_ll_set_alarm_value` / `timer_ll_enable_alarm` register primitives directly. The previous path went through `gptimer_set_alarm_action`, which takes the gptimer driver's portMUX critical section and pinned CPU0 inside the alarm ISR at step rates ~46 kHz and above, eventually tripping the IDLE0 watchdog. The new path is two register writes per pulse with no spinlock, no critical section, and no driver-state bookkeeping. Public API is unchanged; the consumer still calls `rearmFromIsr(ticks)` the same way. 1.5.8 fixes a follow-on bug from that rewrite: `lastAlarmCount_` (the relative-scheduling cursor) used to be refreshed from `gptimer_alarm_event_data_t::alarm_value`, which is filled from a cached C-struct field that the LL-bypass doesn't update — leaving the cursor frozen at the seed value and causing every `rearmFromIsr` to schedule into the past. `HwTimer` now maintains the cursor itself (seeded in `startOneShotTicks`, advanced in `rearmFromIsr`); `fireFromIsr` no longer touches it.
+
 ## Critical section (`ungula/hal/sync/critical_section.h`)
 
 `CriticalSection` is a dual-core spinlock on ESP32 (`portMUX_TYPE`) and a no-op on host builds. Use it to guard tiny shared state touched by both task context and ISR callbacks.

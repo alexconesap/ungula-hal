@@ -67,6 +67,20 @@ class HwTimer final : public IHwTimer {
 
     private:
         void *handle_ = nullptr; // opaque (ESP32: gptimer_handle_t)
+
+        /// ESP32 only: pointer to the underlying timer-group register
+        /// block (`timg_dev_t*`, held as `void*` to keep this header
+        /// platform-agnostic) and the timer index inside that group
+        /// (0 or 1). Cached at `begin()` time by peeking the gptimer
+        /// driver's private struct; used inside `rearmFromIsr()` to
+        /// write the alarm registers via the lockless `timer_ll_*`
+        /// primitives, bypassing the spinlock-protected public API.
+        /// This is the difference between crashing at ~46 kHz and
+        /// running cleanly past 50 kHz. Host backend leaves these as
+        /// nullptr / 0 — its `rearmFromIsr` never fires.
+        void *dev_ = nullptr;
+        uint32_t timerId_ = 0;
+
         IsrTimerCallback cb_ = nullptr;
         void *ctx_ = nullptr;
         uint32_t resolution_ = 0;
@@ -92,19 +106,29 @@ class HwTimer final : public IHwTimer {
         /// access from task and ISR contexts on dual-core ESP32.
         std::atomic<bool> armed_{ false };
 
-        /// Last counter value at which the hardware alarm fired. Cached
-        /// inside the trampoline so `rearmFromIsr` can schedule the next
-        /// alarm as `lastAlarmCount_ + ticks` without re-reading the counter
-        /// register on every pulse.
+        /// Running tally of the counter value at which the most recent
+        /// alarm fired, used by `rearmFromIsr()` to schedule the next
+        /// alarm as `lastAlarmCount_ + ticks` without reading the
+        /// counter register.
         ///
-        /// **Invariant — ISR-only access path:**
-        ///   - Written inside `fireFromIsr()` (ISR context).
-        ///   - Read inside `rearmFromIsr()` (ISR context, always called from
-        ///     within the user callback that `fireFromIsr` invokes — same
-        ///     core, same ISR chain).
-        ///   - Reset to 0 inside `begin()` and `startOneShotTicks()` (task
-        ///     context) but only when the hardware counter is stopped, so
-        ///     no ISR can be racing.
+        /// We maintain this ourselves rather than reading
+        /// `gptimer_alarm_event_data_t::alarm_value` because the gptimer
+        /// driver fills that from its own cached C-struct field, which
+        /// is only updated through the public `gptimer_set_alarm_action`
+        /// — and our ISR rearm path deliberately bypasses that public
+        /// API (it takes a per-pulse critical section that overran the
+        /// inter-pulse budget at ~46 kHz step rates).
+        ///
+        /// **Invariant — no concurrent access window:**
+        ///   - Seeded by `startOneShotTicks()` to the first alarm value
+        ///     (task context; counter is stopped immediately before, so
+        ///     no ISR can be racing).
+        ///   - Advanced by `rearmFromIsr()` (ISR context, always inside
+        ///     the user callback that `fireFromIsr` invokes — same core,
+        ///     same ISR chain, no other writers).
+        ///   - Reset to 0 in `begin()` (task context; counter not yet
+        ///     started).
+        ///   - Never written from `fireFromIsr()` — see comment there.
         ///
         /// 64-bit reads/writes are NOT atomic on Xtensa (two 32-bit ops).
         /// Do not add a task-context read path without first switching to
