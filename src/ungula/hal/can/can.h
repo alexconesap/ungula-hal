@@ -7,14 +7,27 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/// @brief Platform-abstracted CAN 2.0 controller.
+#include "ungula/hal/can/can_frame.h"
+#include "ungula/hal/can/i_can.h"
+
+/// @brief Platform-abstracted classic CAN 2.0 controller.
 ///
-/// Wraps the platform CAN peripheral into a simple frame-based interface.
-/// On ESP32, uses ESP-IDF's TWAI driver (`driver/twai.h`). On other
-/// platforms, provides a no-op stub for compilation and host tests.
+/// `Can` is the default classic-CAN class — the one most host code
+/// constructs and calls `begin()` on. On ESP32 it dispatches to the
+/// native TWAI controller (see `platforms/can_esp32_twai.cpp`); on
+/// non-ESP platforms it falls back to the host stub
+/// (`platforms/can_default.cpp`). Other CAN families live in their
+/// own classes: a future `Mcp2515Can` (external SPI controller,
+/// same `ICan` interface) and a future `CanFd` (CAN-FD on its own
+/// `ICanFd` interface) join the hierarchy without changing this
+/// class.
 ///
-/// CAN-FD is intentionally out of scope; ESP32 classic does not support
-/// it and v1 callers (servo motor controllers) use CAN 2.0.
+/// Acceptance-filter and pin / bitrate config live on this concrete
+/// class because their shape varies between controller families
+/// (TWAI's single 11/29-bit filter vs MCP2515's multi-mailbox
+/// scheme, etc.). Higher layers that want to swap controller
+/// families take an `ICan&` instead and skip the family-specific
+/// API.
 ///
 /// Usage:
 ///
@@ -38,41 +51,19 @@
 namespace ungula::hal::can
 {
 
-/// Standard CAN 2.0 frame. Up to 8 data bytes. Both 11-bit
-/// (standard) and 29-bit (extended) IDs are supported via the
-/// `extendedId` flag.
-struct CanFrame {
-        uint32_t id; // 11-bit (extendedId=false) or 29-bit (extendedId=true)
-        bool extendedId; // selects ID width
-        bool remote; // remote transmission request (rarely used)
-        uint8_t dlc; // 0..8
-        uint8_t data[8];
-};
-
-/// Common bitrates expressed in Hz so call sites read clearly.
-/// Backends map these to their own internal presets; values not in
-/// the table here may still work — drivers reject what they cannot
-/// configure by returning `false` from `begin()`.
-constexpr uint32_t BITRATE_25K = 25'000;
-constexpr uint32_t BITRATE_50K = 50'000;
-constexpr uint32_t BITRATE_100K = 100'000;
-constexpr uint32_t BITRATE_125K = 125'000;
-constexpr uint32_t BITRATE_250K = 250'000;
-constexpr uint32_t BITRATE_500K = 500'000;
-constexpr uint32_t BITRATE_800K = 800'000;
-constexpr uint32_t BITRATE_1M = 1'000'000;
-
 /// @brief CAN controller wrapper.
 ///
 /// Owns the driver for a single hardware CAN/TWAI controller.
 /// Destructor uninstalls it. Non-copyable — one owner per
-/// physical controller.
-class Can {
+/// physical controller. Implements `ICan` so callers that hold an
+/// `ICan&` can talk to this controller, an `Mcp2515Can`, or any
+/// future classic-CAN controller through the same surface.
+class Can : public ICan {
     public:
         /// @param controllerNumber Hardware controller index (0 on
         ///                         ESP32, which has a single TWAI).
         explicit Can(uint8_t controllerNumber);
-        ~Can();
+        ~Can() override;
 
         Can(const Can &) = delete;
         Can &operator=(const Can &) = delete;
@@ -87,20 +78,14 @@ class Can {
         ///         the bitrate is unsupported, or driver error.
         bool begin(uint8_t txPin, uint8_t rxPin, uint32_t bitrateBps);
 
-        /// @brief Stop the controller and free the driver. Idempotent.
-        bool stop();
+        // ---- ICan -------------------------------------------------------
+        bool    send(const CanFrame &frame, uint32_t timeoutMs = 50) override;
+        int32_t receive(CanFrame &out, uint32_t timeoutMs = 0)        override;
+        bool    isBusOff() const                                       override;
+        bool    recoverFromBusOff()                                    override;
+        bool    stop()                                                 override;
 
-        /// @brief Transmit one frame. Blocks up to `timeoutMs`
-        ///        waiting for room in the TX queue.
-        /// @return true on ACK / queued, false on timeout or error.
-        bool send(const CanFrame &frame, uint32_t timeoutMs = 50);
-
-        /// @brief Receive one frame.
-        /// @param out        Destination frame.
-        /// @param timeoutMs  0 = non-blocking, >0 = block.
-        /// @return 1 on success, 0 on timeout, -1 on error.
-        int32_t receive(CanFrame &out, uint32_t timeoutMs = 0);
-
+        // ---- Family-specific (not on ICan) ------------------------------
         /// @brief Single hardware acceptance filter. After the call,
         ///        the controller drops every frame where
         ///        `(rxId & mask) != (id & mask)`.
@@ -109,15 +94,6 @@ class Can {
 
         /// @brief Reset the filter to "accept all" (default).
         bool clearAcceptanceFilter();
-
-        /// @brief True when the controller is in bus-off (error
-        ///        counter overflow, line stuck low, etc.).
-        bool isBusOff() const;
-
-        /// @brief Initiate bus-off recovery. Returns true on
-        ///        success; the bus may take some milliseconds
-        ///        to come back online.
-        bool recoverFromBusOff();
 
         /// @brief Hardware controller index passed at construction.
         uint8_t controller() const

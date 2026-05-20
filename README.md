@@ -736,9 +736,11 @@ lib_hal/
             uart_esp32.cpp        # ESP-IDF uart driver wrapper
             uart_default.cpp      # no-op stubs for desktop builds
         can/
-          can.h                   # platform-portable CAN 2.0 interface
+          can_frame.h             # shared CanFrame struct + bitrate constants
+          i_can.h                 # abstract classic-CAN interface
+          can.h                   # default classic-CAN class (implements ICan)
           platforms/
-            can_esp32.cpp         # ESP-IDF TWAI driver wrapper
+            can_esp32_twai.cpp    # ESP-IDF TWAI backend (classic CAN 2.0)
             can_default.cpp       # no-op stubs for desktop builds
         sync/
           critical_section.h      # cross-platform critical section + RAII lock
