@@ -11,6 +11,8 @@
 /// compile and link on desktop (tests, tools) without any platform SDK.
 
 #include <stdint.h>
+
+#include "ungula/hal/core/compiler_attrs.h" // IWYU pragma: export
 #include "ungula/hal/gpio/gpio_types.h"
 
 #define DEFAULT_GPIO_STATE false
@@ -21,35 +23,35 @@ namespace ungula::hal::gpio
 namespace detail
 {
 
-/// Records the LAST input-config call applied to a pin on the host
-/// backend. Test-only: lets host-side unit tests assert that library
-/// code wired the right pull mode for the configured polarity. ESP32
-/// builds use `gpio_esp32.h` and do not include this tracker. Default
-/// is `None`; reset is not provided — tests that need a clean slate
-/// run their pin numbers in their own range or work modulo this table.
-enum class HostInputMode : uint8_t {
-        None = 0,
-        Plain,     // configInput(pin)
-        Pullup,    // configInputPullup(pin)
-        Pulldown,  // configInputPulldown(pin)
-        Interrupt, // configInputInterrupt(pin, edge, pull)
-};
+        /// Records the LAST input-config call applied to a pin on the host
+        /// backend. Test-only: lets host-side unit tests assert that library
+        /// code wired the right pull mode for the configured polarity. ESP32
+        /// builds use `gpio_esp32.h` and do not include this tracker. Default
+        /// is `None`; reset is not provided — tests that need a clean slate
+        /// run their pin numbers in their own range or work modulo this table.
+        enum class HostInputMode : uint8_t {
+                None = 0,
+                Plain, // configInput(pin)
+                Pullup, // configInputPullup(pin)
+                Pulldown, // configInputPulldown(pin)
+                Interrupt, // configInputInterrupt(pin, edge, pull)
+        };
 
-inline HostInputMode &hostInputModeSlot(uint8_t pin)
-{
-        static HostInputMode table[64] = {};
-        return table[pin & 63];
-}
+        inline HostInputMode &hostInputModeSlot(uint8_t pin)
+        {
+                static HostInputMode table[64] = {};
+                return table[pin & 63];
+        }
 
-inline HostInputMode lastInputMode(uint8_t pin)
-{
-        return hostInputModeSlot(pin);
-}
+        inline HostInputMode lastInputMode(uint8_t pin)
+        {
+                return hostInputModeSlot(pin);
+        }
 
-inline void resetInputMode(uint8_t pin)
-{
-        hostInputModeSlot(pin) = HostInputMode::None;
-}
+        inline void resetInputMode(uint8_t pin)
+        {
+                hostInputModeSlot(pin) = HostInputMode::None;
+        }
 
 } // namespace detail
 

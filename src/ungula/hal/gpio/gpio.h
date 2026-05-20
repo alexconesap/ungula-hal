@@ -8,7 +8,7 @@
 ///
 /// Dispatches to the platform-specific implementation based on build
 /// environment. The platform header provides all functions in the
-/// ungula::gpio namespace.
+/// ungula::hal::gpio namespace.
 ///
 /// Usage:
 ///   #include <ungula/hal/gpio/gpio.h>   // cross-library
@@ -34,12 +34,8 @@
 /// which compiles to direct register writes (W1TS/W1TC) — single-cycle
 /// GPIO access safe for timer ISRs.
 
-#include <stdint.h>
-
-#include "ungula/hal/core/compiler_attrs.h"
-
 #if defined(ESP_PLATFORM)
-#include "platforms/gpio_esp32.h"
+#include "platforms/gpio_esp32.h" // IWYU pragma: export
 #else
-#include "platforms/gpio_default.h"
+#include "platforms/gpio_default.h" // IWYU pragma: export
 #endif

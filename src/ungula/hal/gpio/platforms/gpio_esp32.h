@@ -43,6 +43,8 @@
 
 #include <stdint.h>
 
+#include "ungula/hal/core/compiler_attrs.h" // IWYU pragma: export
+
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "hal/gpio_ll.h"

@@ -18,7 +18,7 @@
 /// function reachable from an ISR — including non-virtual callbacks,
 /// trampolines, helpers called from ISR context, and inline helpers.
 ///
-/// We forward-declare `IRAM_ATTR` here as the macro from `esp_attr.h`
+/// We include `esp_attr.h` here to use the vendor-defined `IRAM_ATTR`
 /// to avoid pulling the full ESP-IDF header into every consumer. The
 /// vendor header defines it identically; the function lands in the
 /// `.iram1` section either way.
