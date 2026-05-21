@@ -53,6 +53,29 @@ namespace detail
                 hostInputModeSlot(pin) = HostInputMode::None;
         }
 
+        /// Per-pin read override for host-side tests. ESP32 builds use
+        /// `gpio_esp32.h` and ignore this. Initialised to
+        /// `DEFAULT_GPIO_STATE` (false) for every pin, so existing
+        /// tests that don't touch the table see the same behaviour
+        /// they always did. Set via `setHostReadValue(pin, value)`.
+        inline bool &hostReadValueSlot(uint8_t pin)
+        {
+                static bool table[64] = {};
+                return table[pin & 63];
+        }
+
+        inline void setHostReadValue(uint8_t pin, bool value)
+        {
+                hostReadValueSlot(pin) = value;
+        }
+
+        inline void resetAllHostReadValues()
+        {
+                for (uint8_t i = 0; i < 64; ++i) {
+                        hostReadValueSlot(i) = false;
+                }
+        }
+
 } // namespace detail
 
 // ---- Pin configuration (always succeed) ----
@@ -88,9 +111,9 @@ inline bool configOutputRelay(uint8_t /*pin*/,
 
 // ---- Digital read/write — unchecked (no-op) ----
 
-inline bool read(uint8_t /*pin*/)
+inline bool read(uint8_t pin)
 {
-        return DEFAULT_GPIO_STATE;
+        return detail::hostReadValueSlot(pin);
 }
 inline void setHigh(uint8_t /*pin*/)
 {
