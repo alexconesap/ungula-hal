@@ -158,6 +158,7 @@ void loop() {
 #include <ungula/hal.h>
 
 using ungula::hal::gpio::InterruptEdge;
+using ungula::hal::gpio::IsrServiceInstall;
 using ungula::hal::gpio::PullMode;
 
 // Button with internal pull-up, trigger on falling edge
@@ -165,6 +166,11 @@ configInputInterrupt(BUTTON_PIN, InterruptEdge::EDGE_FALLING, PullMode::UP);
 
 // Open-drain signal (e.g. TMC2209 DIAG) with pull-up
 configInputInterrupt(DIAG_PIN, InterruptEdge::EDGE_RISING, PullMode::UP);
+
+const auto isrInstall = installIsrService();
+if (isrInstall != IsrServiceInstall::Failed) {
+    addIsrHandler(BUTTON_PIN, &onButton, nullptr);
+}
 
 // External pull — no internal resistor (default)
 configInputInterrupt(SENSOR_PIN, InterruptEdge::EDGE_ANY);

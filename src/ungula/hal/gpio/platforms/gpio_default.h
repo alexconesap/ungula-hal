@@ -199,6 +199,7 @@ inline bool checkedWrite(uint8_t /*pin*/, bool /*high*/)
 
 enum class InterruptEdge : uint8_t { EDGE_RISING = 0, EDGE_FALLING = 1, EDGE_ANY = 2 };
 enum class PullMode : uint8_t { NONE = 0, UP = 1, DOWN = 2 };
+enum class IsrServiceInstall : uint8_t { Installed = 0, AlreadyInstalled = 1, Failed = 2 };
 
 using GpioIsrHandler = void (*)(void *);
 
@@ -208,9 +209,14 @@ inline bool configInputInterrupt(uint8_t pin, InterruptEdge /*edge*/,
         detail::hostInputModeSlot(pin) = detail::HostInputMode::Interrupt;
         return true;
 }
-inline bool installIsrService()
+inline IsrServiceInstall installIsrService()
 {
-        return true;
+        static bool installed = false;
+        if (!installed) {
+                installed = true;
+                return IsrServiceInstall::Installed;
+        }
+        return IsrServiceInstall::AlreadyInstalled;
 }
 inline bool addIsrHandler(uint8_t /*pin*/, GpioIsrHandler /*handler*/, void * /*ctx*/)
 {

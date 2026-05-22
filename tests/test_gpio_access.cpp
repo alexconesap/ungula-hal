@@ -12,6 +12,7 @@ namespace
 {
 
 using ungula::hal::gpio::GpioIsrHandler;
+using ungula::hal::gpio::IsrServiceInstall;
 using ungula::hal::gpio::InterruptEdge;
 using ungula::hal::gpio::PullMode;
 using ungula::hal::gpio::RelayPolarity;
@@ -115,8 +116,12 @@ TEST(GpioAccessStubTest, ConfigInputInterruptAcceptsAllEdges)
 
 TEST(GpioAccessStubTest, IsrServiceLifecycle)
 {
-        EXPECT_TRUE(ungula::hal::gpio::installIsrService());
-        EXPECT_TRUE(ungula::hal::gpio::installIsrService()); // idempotent
+        const auto first = ungula::hal::gpio::installIsrService();
+        EXPECT_TRUE(first == IsrServiceInstall::Installed ||
+                    first == IsrServiceInstall::AlreadyInstalled);
+
+        const auto second = ungula::hal::gpio::installIsrService(); // idempotent
+        EXPECT_EQ(second, IsrServiceInstall::AlreadyInstalled);
         EXPECT_TRUE(ungula::hal::gpio::addIsrHandler(TEST_PIN, &dummyIsr, nullptr));
         EXPECT_TRUE(ungula::hal::gpio::removeIsrHandler(TEST_PIN));
 }

@@ -92,14 +92,17 @@ void setup() {
     using ungula::hal::gpio::PullMode;
 
     ungula::hal::gpio::configInputInterrupt(BUTTON_PIN, InterruptEdge::EDGE_FALLING, PullMode::UP);
-    ungula::hal::gpio::installIsrService();
+    const auto install = ungula::hal::gpio::installIsrService();
+    if (install == ungula::hal::gpio::IsrServiceInstall::Failed) {
+        return;
+    }
     ungula::hal::gpio::addIsrHandler(BUTTON_PIN, &onButton, nullptr);
 }
 
 void loop() {}
 ```
 
-When to use this: any input that must wake on edge events without polling. `installIsrService()` is idempotent — calling it more than once is fine.
+When to use this: any input that must wake on edge events without polling. `installIsrService()` is idempotent — repeated calls return `AlreadyInstalled`.
 
 ### Use case: PWM fan / LED dimming via LEDC
 
@@ -449,6 +452,18 @@ using GpioIsrHandler = void (*)(void*);
 
 ISR callback signature. Place the function with `UNGULA_ISR_ATTR` so it lands in IRAM and survives flash operations.
 
+### `ungula::hal::gpio::IsrServiceInstall`
+
+```cpp
+enum class IsrServiceInstall : uint8_t {
+    Installed = 0,
+    AlreadyInstalled = 1,
+    Failed = 2,
+};
+```
+
+Result code for `installIsrService()`: first successful install returns `Installed`; subsequent idempotent calls return `AlreadyInstalled`; driver errors return `Failed`.
+
 ### `UNGULA_ISR_ATTR`  (`ungula/hal/core/compiler_attrs.h`)
 
 Preprocessor macro. On ESP32 expands to `IRAM_ATTR` (forces the function into IRAM so it remains callable while flash is busy); on the default backend expands to nothing. Apply to any function called from ISR context — handlers, trampolines, helpers, inline callees.
@@ -674,13 +689,13 @@ bool ungula::hal::gpio::checkedWrite(uint8_t pin, bool high);
 bool ungula::hal::gpio::configInputInterrupt(uint8_t pin,
                                         ungula::hal::gpio::InterruptEdge edge,
                                         ungula::hal::gpio::PullMode pull = ungula::hal::gpio::PullMode::NONE);
-bool ungula::hal::gpio::installIsrService();
+ungula::hal::gpio::IsrServiceInstall ungula::hal::gpio::installIsrService();
 bool ungula::hal::gpio::addIsrHandler(uint8_t pin, ungula::hal::gpio::GpioIsrHandler handler, void* context);
 bool ungula::hal::gpio::removeIsrHandler(uint8_t pin);
 ```
 
 - **Purpose** — wire a GPIO to an interrupt vector and attach a handler.
-- **Returns** — `true` on success; `installIsrService()` also returns `true` if the service is already installed (`ESP_ERR_INVALID_STATE` is treated as success).
+- **Returns** — `installIsrService()` returns `Installed`, `AlreadyInstalled`, or `Failed`; all other functions return `true` on success.
 - **Side effects** — installs the global GPIO ISR service on first call; registers the per-pin handler.
 - **Usage notes** — handlers must be marked `UNGULA_ISR_ATTR`. Keep them short — defer real work to a task via a queue or notification.
 

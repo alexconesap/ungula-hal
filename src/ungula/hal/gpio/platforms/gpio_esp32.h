@@ -41,6 +41,7 @@
 /// Looking for ADC input?? see <ungula/hal/adc/adc_manager.h>.
 /// Conceptually ADC is its own peripheral, not a GPIO function.
 
+#include <atomic>
 #include <stdint.h>
 
 #include "ungula/hal/core/compiler_attrs.h" // IWYU pragma: export
@@ -376,6 +377,8 @@ enum class InterruptEdge : uint8_t { EDGE_RISING = 0, EDGE_FALLING = 1, EDGE_ANY
 /// @brief Pull resistor mode for interrupt-enabled inputs.
 enum class PullMode : uint8_t { NONE = 0, UP = 1, DOWN = 2 };
 
+enum class IsrServiceInstall : uint8_t { Installed = 0, AlreadyInstalled = 1, Failed = 2 };
+
 using GpioIsrHandler = void (*)(void *);
 
 /// @brief Configure a pin as input with interrupt on the specified edge.
@@ -411,10 +414,43 @@ inline bool configInputInterrupt(uint8_t pin, InterruptEdge edge, PullMode pull 
         return gpio_config(&cfg) == ESP_OK;
 }
 
-inline bool installIsrService()
+inline IsrServiceInstall installIsrService()
 {
-        esp_err_t err = gpio_install_isr_service(0);
-        return (err == ESP_OK || err == ESP_ERR_INVALID_STATE);
+        constexpr uint8_t kNotInstalled = 0;
+        constexpr uint8_t kInstalling = 1;
+        constexpr uint8_t kInstalled = 2;
+
+        static std::atomic<uint8_t> state{ kNotInstalled };
+
+        uint8_t s = state.load(std::memory_order_acquire);
+        for (;;) {
+                if (s == kInstalled) {
+                        return IsrServiceInstall::AlreadyInstalled;
+                }
+
+                if (s == kInstalling) {
+                        do {
+                                s = state.load(std::memory_order_acquire);
+                        } while (s == kInstalling);
+                        continue;
+                }
+
+                if (state.compare_exchange_weak(s, kInstalling, std::memory_order_acq_rel,
+                                                std::memory_order_acquire)) {
+                        const esp_err_t err = gpio_install_isr_service(0);
+                        if (err == ESP_OK) {
+                                state.store(kInstalled, std::memory_order_release);
+                                return IsrServiceInstall::Installed;
+                        }
+                        if (err == ESP_ERR_INVALID_STATE) {
+                                state.store(kInstalled, std::memory_order_release);
+                                return IsrServiceInstall::AlreadyInstalled;
+                        }
+
+                        state.store(kNotInstalled, std::memory_order_release);
+                        return IsrServiceInstall::Failed;
+                }
+        }
 }
 
 inline bool addIsrHandler(uint8_t pin, GpioIsrHandler handler, void *context)
