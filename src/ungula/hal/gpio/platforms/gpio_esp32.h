@@ -70,6 +70,17 @@ namespace detail
                 return GPIO_IS_VALID_OUTPUT_GPIO(static_cast<int>(pin));
         }
 
+        // ESP32 only supports internal pull-ups on GPIOs 0-33. GPIOs 34-39 are input-only and do not have internal pull-up resistors.
+        inline bool supportsInternalPulldown(uint8_t pin)
+        {
+                return GPIO_IS_VALID_GPIO(static_cast<int>(pin)) &&
+                       pin < static_cast<int>(GPIO_NUM_34);
+        }
+        inline bool supportsInternalPullup(uint8_t pin)
+        {
+                return GPIO_IS_VALID_GPIO(static_cast<int>(pin)) &&
+                       pin < static_cast<int>(GPIO_NUM_34);
+        }
 } // namespace detail
 
 // ---- Pin configuration ----
@@ -81,8 +92,7 @@ inline bool configOutput(uint8_t pin)
         if (!detail::isValidOutputGpio(pin)) {
                 return false;
         }
-        // Do NOT optimize initialization to guarantee portability with different ESP-IDF
-        // versions and for debugging.
+
         gpio_config_t cfg = {};
         cfg.pin_bit_mask = 1ULL << pin;
         cfg.mode = GPIO_MODE_OUTPUT;
@@ -97,8 +107,7 @@ inline bool configInput(uint8_t pin)
         if (!detail::isValidGpio(pin)) {
                 return false;
         }
-        // Do NOT optimize initialization to guarantee portability with different ESP-IDF
-        // versions and for debugging.
+
         gpio_config_t cfg = {};
         cfg.pin_bit_mask = 1ULL << pin;
         cfg.mode = GPIO_MODE_INPUT;
@@ -110,11 +119,10 @@ inline bool configInput(uint8_t pin)
 
 inline bool configInputPullup(uint8_t pin)
 {
-        if (!detail::isValidGpio(pin)) {
+        if (!detail::supportsInternalPullup(pin)) {
                 return false;
         }
-        // Do NOT optimize initialization to guarantee portability with different ESP-IDF
-        // versions and for debugging.
+
         gpio_config_t cfg = {};
         cfg.pin_bit_mask = 1ULL << pin;
         cfg.mode = GPIO_MODE_INPUT;
@@ -126,11 +134,10 @@ inline bool configInputPullup(uint8_t pin)
 
 inline bool configInputPulldown(uint8_t pin)
 {
-        if (!detail::isValidGpio(pin)) {
+        if (!detail::supportsInternalPulldown(pin)) {
                 return false;
         }
-        // Do NOT optimize initialization to guarantee portability with different ESP-IDF
-        // versions and for debugging.
+
         gpio_config_t cfg = {};
         cfg.pin_bit_mask = 1ULL << pin;
         cfg.mode = GPIO_MODE_INPUT;
@@ -169,8 +176,7 @@ inline bool configOutputOpenDrain(uint8_t pin)
         if (!detail::isValidOutputGpio(pin)) {
                 return false;
         }
-        // Do NOT optimize initialization to guarantee portability with different ESP-IDF
-        // versions and for debugging.
+
         gpio_config_t cfg = {};
         cfg.pin_bit_mask = 1ULL << pin;
         cfg.mode = GPIO_MODE_OUTPUT_OD;
@@ -388,9 +394,20 @@ using GpioIsrHandler = void (*)(void *);
 /// @return true on success, false on invalid pin or driver error.
 inline bool configInputInterrupt(uint8_t pin, InterruptEdge edge, PullMode pull = PullMode::NONE)
 {
-        if (!detail::isValidGpio(pin)) {
-                return false;
+        if (pull == PullMode::UP) {
+                if (!detail::supportsInternalPullup(pin)) {
+                        return false;
+                }
+        } else if (pull == PullMode::DOWN) {
+                if (!detail::supportsInternalPulldown(pin)) {
+                        return false;
+                }
+        } else {
+                if (!detail::isValidGpio(pin)) {
+                        return false;
+                }
         }
+
         gpio_int_type_t intrType = GPIO_INTR_DISABLE;
         switch (edge) {
         case InterruptEdge::EDGE_RISING:
@@ -403,8 +420,7 @@ inline bool configInputInterrupt(uint8_t pin, InterruptEdge edge, PullMode pull 
                 intrType = GPIO_INTR_ANYEDGE;
                 break;
         }
-        // Do NOT optimize initialization to guarantee portability with different ESP-IDF
-        // versions and for debugging.
+
         gpio_config_t cfg = {};
         cfg.pin_bit_mask = 1ULL << pin;
         cfg.mode = GPIO_MODE_INPUT;
