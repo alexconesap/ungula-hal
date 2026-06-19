@@ -6,6 +6,8 @@
 
 #include "ungula/hal/pwm_input/drivers/pwm_input.h"
 
+#include "ungula/hal/gpio/gpio.h" // shared ISR-service install (single process-wide flag)
+
 #include "driver/gpio.h"
 #include "esp_attr.h"
 #include "esp_timer.h"
@@ -39,7 +41,6 @@ namespace
 
         constexpr size_t kMaxGpio = 64;
         CaptureState g_state[kMaxGpio]{};
-        bool g_isrServiceInstalled = false;
 
         IRAM_ATTR void onEdge(void *arg)
         {
@@ -102,12 +103,13 @@ bool PwmInput::begin(uint8_t pin)
         if (gpio_config(&cfg) != ESP_OK) {
                 return false;
         }
-        if (!g_isrServiceInstalled) {
-                const esp_err_t e = gpio_install_isr_service(0);
-                if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) {
-                        return false;
-                }
-                g_isrServiceInstalled = true;
+        // Route through the gpio HAL's shared installer: one process-wide flag
+        // covers both this module and the gpio interrupt path, so the service is
+        // installed exactly once. Calling gpio_install_isr_service() a second
+        // time makes the ESP-IDF driver log an `E gpio: ... already installed`
+        // line even when the caller tolerates the return code.
+        if (ungula::hal::gpio::installIsrService() == ungula::hal::gpio::IsrServiceInstall::Failed) {
+                return false;
         }
         g_state[pin] = CaptureState{};
         g_state[pin].inUse = true;
