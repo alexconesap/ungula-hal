@@ -6,7 +6,7 @@
 
 > **Warning - Active Development:** This library is under active architecture work to support multiple projects in parallel. Its structure is not finalized yet and may change without notice while this work is in progress. Updates are currently frequent (often daily). Target for structural freeze and stable `v1.0.0`: **June 2026**.
 
-Hardware abstraction layer for embedded projects. Provides platform-portable GPIO, PWM, ADC, UART, I2C, SPI, CAN 2.0, an I2C bus multiplexer interface, single-pin PWM input capture, quadrature (A/B) decoders, deterministic hardware timers, and ISR-safe critical sections.
+Hardware abstraction layer for embedded projects. Provides platform-portable GPIO, PWM, ADC, UART, a non-blocking serial console, I2C, SPI, CAN 2.0, an I2C bus multiplexer interface, single-pin PWM input capture, quadrature (A/B) decoders, deterministic hardware timers, and ISR-safe critical sections.
 
 Each peripheral ships as a stable C++ interface in the `ungula::hal::` namespace, a concrete platform-dispatched driver, and (where appropriate) a header-only fake for host tests. Higher-level libraries (`lib_loadcell`, `lib_motor`, `lib_sd`, `lib_encoder`) compile against the abstractions, not the vendor SDKs.
 
@@ -26,6 +26,10 @@ On ESP32, GPIO uses `gpio_ll` direct register writes (single-cycle, ISR-safe); U
   - [Notes](#notes)
 - [UART (`ungula/hal/uart/uart.h`)](#uart-ungulahaluartuarth)
   - [UART API](#uart-api)
+- [Serial console (`ungula/hal/console/console.h`)](#serial-console-ungulahalconsoleconsoleh)
+  - [Real-world use case — interactive hardware test menu](#real-world-use-case--interactive-hardware-test-menu)
+  - [Real-world use case — line commands with arguments](#real-world-use-case--line-commands-with-arguments)
+  - [Console API](#console-api)
 - [I2C Master (`ungula/hal/i2c/i2c_master.h`)](#i2c-master-ungulahali2ci2cmasterh)
   - [I2C API](#i2c-api)
 - [SPI Master (`ungula/hal/spi/spi_master.h`)](#spi-master-ungulahalspispimasterh)
@@ -287,6 +291,95 @@ int32_t receiveResponse(uint8_t* buf, size_t maxLen) {
 | `read(buf, maxLen, timeoutMs)` | Read with timeout. Returns bytes read or -1. |
 | `flush()` | Block until all TX data is physically sent. |
 | `flushInput()` | Discard all pending RX data. |
+
+## Serial console (`ungula/hal/console/console.h`)
+
+Non-blocking serial console for interactive menus and hardware bring-up: read
+keystrokes (or whole command lines) from a UART without ever stalling the main
+loop. Output keeps using the normal `printf`/stdout path, so an attached serial
+monitor still shows your logs while the console reads the same port's RX and
+echoes typed characters (terminals such as `idf.py monitor` do not local-echo).
+
+The defaults target the standard ESP32 console UART (UART0, TX=GPIO1, RX=GPIO3,
+115200), so a default-constructed `Console` works with no arguments. Pass a
+`ConsoleConfig` to drive a secondary UART instead.
+
+### Real-world use case — interactive hardware test menu
+
+A bring-up firmware that exercises hardware from the keyboard: single-key
+commands fire instantly, and a `readChar()`-driven loop never blocks the rest
+of the work (sensor polling, motor service, etc.).
+
+```cpp
+#include <ungula/hal/console/console.h>
+
+using ungula::hal::console::Console;
+
+Console console;  // defaults: UART0, 115200, TX=1 / RX=3
+
+void setup() {
+    if (!console.begin()) {
+        // RX driver could not be installed — the port is already in use.
+        // Keystrokes will not be read; warn and carry on.
+    }
+    console.write("Ready. Press 'h' for help.\r\n");
+}
+
+void loop() {
+    const int c = console.readChar();   // -1 when nothing was typed
+    switch (c) {
+    case 'h': console.write("commands: h=help  e=enable  d=disable\r\n"); break;
+    case 'e': motor.enable();  break;
+    case 'd': motor.disable(); break;
+    default: break;                     // no key this pass — keep looping
+    }
+
+    pollSensors();                      // never blocked waiting for input
+}
+```
+
+### Real-world use case — line commands with arguments
+
+When a command needs a value (`speed 40`, `move 1000`), assemble a whole line.
+`readLine()` returns the finished line only once Enter is pressed, handling
+backspace and echo for you; it returns `nullptr` on every other pass.
+
+```cpp
+void loop() {
+    const char *line = console.readLine();
+    if (line != nullptr) {
+        char verb[16] = {0};
+        float value = 0.0F;
+        if (sscanf(line, "%15s %f", verb, &value) >= 1) {
+            if (strcmp(verb, "speed") == 0) motor.setSpeed(value);
+            else if (strcmp(verb, "move") == 0) motor.moveBy(value);
+        }
+    }
+}
+```
+
+### Secondary UART (custom wiring)
+
+```cpp
+ungula::hal::console::ConsoleConfig cfg;
+cfg.port = 2;          // UART2
+cfg.txPin = 17;
+cfg.rxPin = 16;
+cfg.baud = 230400;
+Console console(cfg);
+```
+
+### Console API
+
+| Method | Description |
+| --- | --- |
+| `Console(cfg = {})` | Construct for a UART. Defaults to the ESP32 console UART. |
+| `begin()` | Install the RX driver. Returns false if the port is already taken. |
+| `readChar()` | Next input byte, or -1 if none pending. Never blocks. |
+| `readLine()` | Completed line (newline stripped) once Enter is seen, else nullptr. |
+| `echo(c)` | Echo one byte back to the terminal. |
+| `write(str)` | Write a NUL-terminated string to the console. |
+| `flushInput()` | Discard pending RX bytes. |
 
 ## I2C Master (`ungula/hal/i2c/i2c_master.h`)
 

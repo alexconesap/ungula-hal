@@ -20,6 +20,9 @@
 // UART (serial communication)
 #include "ungula/hal/uart/uart.h"
 
+// Serial console (non-blocking line/char reader for interactive menus)
+#include "ungula/hal/console/console.h"
+
 // I2C master
 #include "ungula/hal/i2c/i2c_master.h"
 

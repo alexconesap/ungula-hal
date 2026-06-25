@@ -61,6 +61,7 @@ REQUIRES driver esp_adc esp_timer esp_hw_support esp_system freertos
 - [Use case: I2C register read](#use-case-i2c-register-read)
 - [Use case: SPI device on SPI2](#use-case-spi-device-on-spi2)
 - [Use case: UART transmit/receive](#use-case-uart-transmitreceive)
+- [Use case: interactive serial console / menu](#use-case-interactive-serial-console--menu)
 - [Use case: CAN 2.0 bus to a servo motor](#use-case-can-20-bus-to-a-servo-motor)
 - [Use case: variable-period hardware timer ISR](#use-case-variable-period-hardware-timer-isr)
 - [Use case: protect ISR/task shared counters with `CriticalSection`](#use-case-protect-isrtask-shared-counters-with-criticalsection)
@@ -238,6 +239,32 @@ void loop() {}
 ```
 
 When to use this: any serial protocol (Modbus, NMEA, custom). One `Uart` per physical port — class is non-copyable.
+
+### Use case: interactive serial console / menu
+
+```cpp
+#include <ungula/hal/console/console.h>
+
+using ungula::hal::console::Console;
+
+Console console;  // defaults: UART0, 115200, TX=1 / RX=3
+
+void setup() {
+    (void)console.begin();  // false => RX driver not installed; warn if so
+    console.write("Press 'h' for help.\r\n");
+}
+
+void loop() {
+    const int c = console.readChar();   // -1 when nothing typed; never blocks
+    if (c == 'h') console.write("commands: h, e, d\r\n");
+
+    // Or assemble whole lines ("speed 40"): nullptr until Enter is pressed.
+    const char* line = console.readLine();
+    if (line != nullptr) { /* parse line */ }
+}
+```
+
+When to use this: hardware bring-up harnesses and interactive serial menus. Non-blocking `readChar()` for instant single keys, `readLine()` for commands with arguments (handles backspace + echo). Output still uses `printf`/stdout, so a serial monitor keeps showing logs. Default-constructed targets the standard ESP32 console UART; pass a `ConsoleConfig` for a secondary port. One owner per UART port.
 
 ### Use case: CAN 2.0 bus to a servo motor
 
@@ -532,6 +559,19 @@ Constants:
 
 - `constexpr uint16_t ungula::hal::uart::DEFAULT_RX_BUF = 256;`
 - `constexpr uint16_t ungula::hal::uart::DEFAULT_TX_BUF = 0;` — `0` means blocking writes (no TX ring buffer).
+
+### `ungula::hal::console::Console`
+
+Non-blocking serial console over a `Uart`. Non-copyable (owns the port). Construct with a `ConsoleConfig` (defaults to the ESP32 console UART) or no argument. Methods: `begin()` (false if the port is taken), `readChar()` (-1 if none), `readLine()` (nullptr until Enter), `echo(c)`, `write(str)`, `flushInput()`.
+
+Constants / config:
+
+- `constexpr uint8_t  ungula::hal::console::DEFAULT_PORT = 0;`
+- `constexpr uint8_t  ungula::hal::console::DEFAULT_TX_PIN = 1;`
+- `constexpr uint8_t  ungula::hal::console::DEFAULT_RX_PIN = 3;`
+- `constexpr uint32_t ungula::hal::console::DEFAULT_BAUD = 115200;`
+- `constexpr uint16_t ungula::hal::console::DEFAULT_LINE_MAX = 80;` — max usable chars per `readLine()`.
+- `struct ConsoleConfig { uint8_t port; uint8_t txPin; uint8_t rxPin; uint32_t baud; }` — each field defaults to the matching constant above.
 
 ### `ungula::hal::i2c::I2cMaster`
 
