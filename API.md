@@ -18,7 +18,30 @@ The default backend is not suitable for production MCU targets. New MCU targets 
 
 ---
 
+## Build requirements (ESP-IDF components)
+
+**ESP32 / ESP-IDF backend only** (`ESP_PLATFORM` defined). On host/fake builds these sources are no-ops and need no IDF component.
+
+lib_hal is consumed as source. The consuming project's `idf_component_register(... REQUIRES ...)` must list every IDF component used by the lib_hal sources it compiles, or the build fails with `fatal error: <header>: No such file or directory`.
+
+| lib_hal peripheral | IDF component to add to `REQUIRES` |
+| --- | --- |
+| ADC (`adc_manager.h`) | **`esp_adc`** — ⚠️ not pulled in by `driver`; must be added explicitly |
+| GPIO, UART, I2C, SPI, CAN, PWM out, quadrature (PCNT) | `driver` |
+| PWM input capture, hardware timer | `esp_timer` |
+| GPIO low-level / SoC caps (`hal/gpio_ll.h`, `soc/soc_caps.h`) | `hal`, `soc` (usually transitive via `driver`) |
+
+Projects that `GLOB_RECURSE` all of `lib_hal/src` compile `adc/platforms/adc_manager_esp32.cpp` even when the ADC is unused, so they need `esp_adc` regardless. Full-HAL baseline:
+
+```cmake
+REQUIRES driver esp_adc esp_timer esp_hw_support esp_system freertos
+```
+
+---
+
 ## LLM quick map
+
+- **Build requires (ESP-IDF)**: consumer `REQUIRES` must include `esp_adc` for the ADC manager — it is NOT covered by `driver`. See [Build requirements](#build-requirements-esp-idf-components).
 
 - **Primary include**: `#include <ungula/hal.h>`.
 - **Arduino discovery include**: `#include <ungula_hal.h>` (forwarder only; host code should keep using the real header).

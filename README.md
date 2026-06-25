@@ -77,6 +77,39 @@ Test-only backend:
 
 The default backend is not suitable for production MCU targets. New MCU targets must provide platform-specific implementations for timer and synchronization primitives before being used in production.
 
+## ESP-IDF component requirements
+
+**Applies only to the ESP32 / ESP-IDF backend** (`ESP_PLATFORM` defined). On host/fake builds these sources compile to no-ops and pull in no IDF component.
+
+This library is consumed as source (the host project globs `lib_hal/src/**.cpp` and calls `idf_component_register`). The IDF only adds an include path for a component if that component is in the consumer's `REQUIRES`. So **the consuming project must list every IDF component the lib_hal sources it compiles depend on** — otherwise the build fails with `fatal error: <header>: No such file or directory`.
+
+Map of peripheral → required component:
+
+| lib_hal peripheral | IDF header(s) | Component to add to `REQUIRES` |
+| --- | --- | --- |
+| ADC (`adc_manager.h`) | `esp_adc/adc_oneshot.h`, `esp_adc/adc_cali.h` | **`esp_adc`** ⚠️ not pulled in by `driver` — add it explicitly |
+| GPIO, UART, I2C, SPI, CAN, PWM out, quadrature (PCNT) | `driver/*.h` | `driver` |
+| PWM input capture, hardware timer | `esp_timer` API | `esp_timer` |
+| GPIO low-level / SoC caps | `hal/gpio_ll.h`, `soc/soc_caps.h` | `hal`, `soc` (usually transitive via `driver` — list explicitly if a clean build can't find them) |
+
+**The common trap:** a project that globs *all* of `lib_hal` (e.g. with `GLOB_RECURSE`) compiles `adc/platforms/adc_manager_esp32.cpp` even if it never uses the ADC, so it needs `esp_adc` regardless of intent. Either add `esp_adc` to `REQUIRES`, or don't glob the `adc/` sources you don't use.
+
+Minimal `REQUIRES` for a project that uses the full HAL:
+
+```cmake
+idf_component_register(
+  SRCS ${LIB_HAL_SOURCES} ...
+  INCLUDE_DIRS ${LIB_HAL_SRC} ...
+  REQUIRES
+    driver        # gpio, uart, i2c, spi, can (twai), ledc, pcnt
+    esp_adc       # ADC manager — NOT covered by driver
+    esp_timer     # pwm input capture, hardware timer
+    esp_hw_support
+    esp_system
+    freertos
+)
+```
+
 ## Quick Start
 
 In your Arduino `.ino` file:
